@@ -11,6 +11,10 @@ The project demonstrates modular embedded software design, explicit dependency i
 The prototype is built on a breadboard using an ESP32-S3,
 LED indicators, push buttons, and an ambient light sensor.
 
+## Demo
+
+Watch the [ESP32-S3 Automotive System Demo](docs/video/automotive-demo.mp4).
+
 ## Features
 
 - **Headlights:** cycle through `OFF → ON → AUTO → OFF` using the LIGHT button. AUTO mode uses a photoresistor with filtered readings and hysteresis to decide whether it is dark.
