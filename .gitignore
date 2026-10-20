@@ -3,3 +3,17 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
+
+# Local file history
+.history/
+
+# KiCad local and temporary files
+*-backups/
+*.kicad_prl
+*.lck
+_autosave-*
+*.kicad_sch-bak
+*.kicad_pcb-bak
+*.bak
+
+.DS_Store
