@@ -28,8 +28,11 @@ ApplicationBootstrap::ApplicationBootstrap()
 
       headlights_(Board::HEADLIGHTS_LED, Board::HEADLIGHTS_PWM_CHANNEL),
       brakeLights_(Board::BRAKE_LED, Board::BRAKE_PWM_CHANNEL),
-      leftTurn_(Board::LEFT_TURN_LED, Board::LEFT_TURN_PWM_CHANNEL),
-      rightTurn_(Board::RIGHT_TURN_LED, Board::RIGHT_TURN_PWM_CHANNEL),
+    //   leftTurn_(pwmExpander_, Board::LEFT_TURN_PCA9685_CHANNEL),
+    //   rightTurn_(pwmExpander_, Board::RIGHT_TURN_PCA9685_CHANNEL),
+      pwmExpander_(Wire, Board::PCA9685_ADDRESS, Board::PCA9685_FREQUENCY_HZ),
+      leftTurn_(pwmExpander_, Board::LEFT_TURN_PCA9685_CHANNEL),
+      rightTurn_(pwmExpander_, Board::RIGHT_TURN_PCA9685_CHANNEL),
 
       carController_(lightButtonInput_, brakeButtonInput_, turnButtonInput_, crashButtonInput_,
                      engineButtonInput_),
@@ -49,6 +52,12 @@ ApplicationBootstrap::ApplicationBootstrap()
 bool ApplicationBootstrap::begin(uint32_t now) {
     if (initialized_) {
         return true;
+    }
+
+    // Initialize the shared bus and PWM controller before LED channels.
+    if (!Wire.begin(Board::I2C_SDA, Board::I2C_SCL, Board::I2C_FREQUENCY_HZ) ||
+        !pwmExpander_.begin()) {
+        return false;
     }
 
     // Register input devices.

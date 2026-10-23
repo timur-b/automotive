@@ -8,6 +8,7 @@
 #include "drivers/Button.h"
 #include "drivers/Esp32PwmLed.h"
 #include "drivers/Photoresistor.h"
+#include "drivers/Pca9685PwmLed.h"
 #include "indication/StatusIndicatorController.h"
 #include "input/ButtonInput.h"
 #include "input/ButtonInputManager.h"
@@ -39,8 +40,9 @@ private:
 
     drivers::Esp32PwmLed headlights_;
     drivers::Esp32PwmLed brakeLights_;
-    drivers::Esp32PwmLed leftTurn_;
-    drivers::Esp32PwmLed rightTurn_;
+    drivers::Pca9685 pwmExpander_;
+    drivers::Pca9685PwmLed leftTurn_;
+    drivers::Pca9685PwmLed rightTurn_;
 
     app::CarController carController_;
     lighting::LightingController lightingController_;
