@@ -4,6 +4,8 @@
 #include "config/LightingConfig.h"
 #include "config/AmbientLightConfig.h"
 #include "esp_log.h"
+#include "driver/gpio.h"
+#include "esp_err.h"
 
 namespace bootstrap {
 
@@ -116,6 +118,15 @@ bool ApplicationBootstrap::begin(uint32_t now) {
         return true;
     }
 
+    const esp_err_t err = gpio_install_isr_service(0);
+
+    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
+        ESP_LOGE("BOOTSTRAP",
+                "GPIO ISR service initialization failed: %s",
+                esp_err_to_name(err));
+        return false;
+    }
+
     encoder_.begin();
 
     if (!buttonInputManager_.add(lightButtonInput_) ||
@@ -179,7 +190,7 @@ void ApplicationBootstrap::update(uint32_t now) {
     if (!initialized_) {
         return;
     }
-
+    
     application_.update(now);
 }
 
