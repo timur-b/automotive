@@ -16,4 +16,10 @@ _autosave-*
 *.kicad_pcb-bak
 *.bak
 
+# ESP-IDF managed dependencies
+managed_components/
+
+# ESP-IDF configuration backups
+sdkconfig*.old
+
 .DS_Store

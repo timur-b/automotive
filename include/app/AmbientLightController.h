@@ -1,6 +1,6 @@
 #pragma once
 
-#include "input/ILightSensor.h"
+#include "sensors/ILightSensor.h"
 #include <cstdint>
 
 namespace app {

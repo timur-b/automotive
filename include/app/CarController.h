@@ -4,7 +4,7 @@
 
 #include "domain/VehicleState.h"
 #include "input/IButtonInput.h"
-#include "interfaces/IEncoderInput.h"
+#include "input/IEncoderInput.h"
 
 namespace app {
 

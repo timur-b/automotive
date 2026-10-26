@@ -3,7 +3,7 @@
 #include <cstdint>
 
 #include "domain/VehicleState.h"
-#include "interfaces/IMotor.h"
+#include "engine/IMotor.h"
 
 namespace engine {
 

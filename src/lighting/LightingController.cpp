@@ -30,8 +30,8 @@ LightingController::LightingController(output::IPwmLed &headlights,
                                        output::IPwmLed &leftTurn,
                                        output::IPwmLed &rightTurn,
                                        Config config)
-    : headlights_{headlights}, brakeLights_{brakeLights}, leftTurn_{leftTurn},
-      rightTurn_{rightTurn}, config_(config) {}
+    : headlights_{headlights, {}, 0}, brakeLights_{brakeLights, {}, 0}, leftTurn_{leftTurn, {}, 0},
+      rightTurn_{rightTurn, {}, 0}, config_(config) {}
 
 void LightingController::update(const domain::VehicleState &state,
                                 uint32_t now) {

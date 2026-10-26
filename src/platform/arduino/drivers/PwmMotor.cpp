@@ -1,13 +1,13 @@
-#include "drivers/Esp32PwmMotor.h"
+#include "PwmMotor.h"
 
 namespace drivers {
 
-Esp32PwmMotor::Esp32PwmMotor(uint8_t pin, uint8_t channel)
+PwmMotor::PwmMotor(uint8_t pin, uint8_t channel)
     : pin_(pin),
       channel_(channel) {
 }
 
-bool Esp32PwmMotor::begin() {
+bool PwmMotor::begin() {
     pinMode(pin_, OUTPUT);
     digitalWrite(pin_, LOW);
 
@@ -21,7 +21,7 @@ bool Esp32PwmMotor::begin() {
     return true;
 }
 
-void Esp32PwmMotor::setPower(uint8_t percent) {
+void PwmMotor::setPower(uint8_t percent) {
     if (percent > 100) {
         percent = 100;
     }
@@ -32,7 +32,7 @@ void Esp32PwmMotor::setPower(uint8_t percent) {
     ledcWrite(channel_, duty);
 }
 
-void Esp32PwmMotor::stop() {
+void PwmMotor::stop() {
     ledcWrite(channel_, 0);
 }
 

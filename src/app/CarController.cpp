@@ -10,9 +10,10 @@ CarController::CarController(input::IButtonInput& lightButton, input::IButtonInp
                              input::IButtonInput& turnButton, input::IButtonInput& crashButton,
                              input::IButtonInput& engineButton, IEncoderInput& encoder)
     : lightButton_(lightButton), brakeButton_(brakeButton), turnButton_(turnButton),
-      crashButton_(crashButton), engineButton_(engineButton), encoder_(encoder), lightContext_{this, CarButton::LIGHT},
+      crashButton_(crashButton), engineButton_(engineButton), lightContext_{this, CarButton::LIGHT},
       brakeContext_{this, CarButton::BRAKE}, turnContext_{this, CarButton::TURN},
-      crashContext_{this, CarButton::CRASH}, engineContext_{this, CarButton::ENGINE} {}
+      crashContext_{this, CarButton::CRASH}, engineContext_{this, CarButton::ENGINE},
+      encoder_(encoder) {}
 
 void CarController::begin() {
     // Register callbacks for each input.

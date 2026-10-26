@@ -1,14 +1,15 @@
 #pragma once
 
-#include <Arduino.h>
+#include <cstdint>
 
-#include "interfaces/IMotor.h"
+#include "engine/IMotor.h"
+#include "LedcResourceManager.h"
 
 namespace drivers {
 
-class Esp32PwmMotor final : public IMotor {
+class PwmMotor final : public IMotor {
 public:
-    Esp32PwmMotor(uint8_t pin, uint8_t channel);
+    PwmMotor(LedcResourceManager& ledc, uint8_t pin, uint8_t channel);
 
     bool begin();
 
@@ -21,8 +22,10 @@ private:
     static constexpr uint32_t MAX_DUTY =
         (1U << PWM_RESOLUTION) - 1U;
 
+    LedcResourceManager& ledc_;
     uint8_t pin_;
     uint8_t channel_;
+    bool initialized_ = false;
 };
 
 } // namespace drivers

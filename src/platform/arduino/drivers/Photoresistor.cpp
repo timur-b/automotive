@@ -1,4 +1,4 @@
-#include "drivers/Photoresistor.h"
+#include "Photoresistor.h"
 
 #include <Arduino.h>
 

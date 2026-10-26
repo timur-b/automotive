@@ -1,15 +1,15 @@
-#include "drivers/Esp32PwmLed.h"
+#include "PwmLed.h"
 
 #include <Arduino.h>
 
 namespace drivers {
 
-Esp32PwmLed::Esp32PwmLed(uint8_t pin, uint8_t channel, uint32_t frequencyHz, uint8_t resolutionBits,
+PwmLed::PwmLed(uint8_t pin, uint8_t channel, uint32_t frequencyHz, uint8_t resolutionBits,
                          bool activeHigh)
     : pin_(pin), channel_(channel), frequencyHz_(frequencyHz), resolutionBits_(resolutionBits),
       activeHigh_(activeHigh) {}
 
-bool Esp32PwmLed::begin() {
+bool PwmLed::begin() {
     if (initialized_) {
         return true;
     }
@@ -34,7 +34,7 @@ bool Esp32PwmLed::begin() {
     return true;
 }
 
-void Esp32PwmLed::setBrightness(uint16_t brightness) {
+void PwmLed::setBrightness(uint16_t brightness) {
     if (!initialized_) {
         return;
     }

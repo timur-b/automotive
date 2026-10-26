@@ -2,7 +2,7 @@
 
 #include <Arduino.h>
 
-#include "interfaces/IEncoderInput.h"
+#include "input/IEncoderInput.h"
 #include "input/QuadratureDecoder.h"
 
 namespace drivers {
@@ -18,8 +18,8 @@ class Ky040Encoder final : public IEncoderInput {
 public:
     explicit Ky040Encoder(const EncoderConfig& config);
 
-    void begin();
-    void update();
+    void begin() override;
+    void update() override;
     int32_t consumeDelta() override;
 
 private:

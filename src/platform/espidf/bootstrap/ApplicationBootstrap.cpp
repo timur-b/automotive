@@ -1,8 +1,9 @@
 #include "bootstrap/ApplicationBootstrap.h"
 
-#include "config/AmbientLightConfig.h"
-#include "config/LightingConfig.h"
 #include "platform/Board.h"
+#include "config/LightingConfig.h"
+#include "config/AmbientLightConfig.h"
+#include "esp_log.h"
 
 namespace bootstrap {
 
@@ -25,36 +26,90 @@ ApplicationBootstrap::ApplicationBootstrap()
                          {Board::LONG_PRESS_MS, Board::DOUBLE_CLICK_MS}),
 
       buttonInputManager_(),
-
-      headlights_(Board::HEADLIGHTS_LED, Board::HEADLIGHTS_PWM_CHANNEL),
-      brakeLights_(Board::BRAKE_LED, Board::BRAKE_PWM_CHANNEL),
-      leftTurn_(Board::LEFT_TURN_LED, Board::LEFT_TURN_PWM_CHANNEL),
-      rightTurn_(Board::RIGHT_TURN_LED, Board::RIGHT_TURN_PWM_CHANNEL),
-
+      
       encoder_({
           Board::ENCODER_A,
           Board::ENCODER_B,
           4,
           false
-     }),
+      }),
 
-      carController_(lightButtonInput_, brakeButtonInput_, turnButtonInput_, crashButtonInput_,
-                     engineButtonInput_, encoder_),
+      carController_(
+          lightButtonInput_,
+          brakeButtonInput_,
+          turnButtonInput_,
+          crashButtonInput_,
+          engineButtonInput_,
+          encoder_
+      ),
 
-      lightingController_(headlights_, brakeLights_, leftTurn_, rightTurn_,
-                          config::DEFAULT_LIGHTING_CONFIG),
+      ledc_(),
+      headlights_(
+          ledc_,
+          Board::HEADLIGHTS_LED,
+          Board::HEADLIGHTS_PWM_CHANNEL
+      ),
+      brakeLights_(
+          ledc_,
+          Board::BRAKE_LED,
+          Board::BRAKE_PWM_CHANNEL
+      ),
+      leftTurn_(
+          ledc_,
+          Board::LEFT_TURN_LED,
+          Board::LEFT_TURN_PWM_CHANNEL
+      ),
+      rightTurn_(
+          ledc_,
+          Board::RIGHT_TURN_LED,
+          Board::RIGHT_TURN_PWM_CHANNEL
+      ),
+      lightingController_(
+          headlights_,
+          brakeLights_,
+          leftTurn_,
+          rightTurn_,
+          config::DEFAULT_LIGHTING_CONFIG
+      ),
 
       photoresistor_(Board::LDR),
-      ambientLightController_(photoresistor_, config::DEFAULT_AMBIENT_LIGHT_CONFIG),
+
+      ambientLightController_(
+          photoresistor_,
+          config::DEFAULT_AMBIENT_LIGHT_CONFIG
+      ),
 
       engineLed_(Board::RGB_LED),
 
-      airbagLed_(Board::AIRBAG_LED, Board::AIRBAG_PWM_CHANNEL),
+      airbagLed_(
+          ledc_,
+          Board::AIRBAG_LED,
+          Board::AIRBAG_PWM_CHANNEL
+      ),
 
-      statusIndicatorController_(engineLed_, airbagLed_),
+      statusIndicatorController_(
+          engineLed_,
+          airbagLed_
+      ),
+      
+      motor_(
+          ledc_,
+          Board::MOTOR_PWM_PIN,
+          Board::MOTOR_PWM_CHANNEL
+      ),
 
-      motor_(Board::MOTOR_PWM_PIN, Board::MOTOR_PWM_CHANNEL),
-      engineController_(motor_) {}
+      engineController_(motor_),
+      
+      application_(
+          encoder_,
+          buttonInputManager_,
+          ambientLightController_,
+          carController_,
+          engineController_,
+          lightingController_,
+          statusIndicatorController_
+      ) {}
+
 
 bool ApplicationBootstrap::begin(uint32_t now) {
     if (initialized_) {
@@ -63,19 +118,16 @@ bool ApplicationBootstrap::begin(uint32_t now) {
 
     encoder_.begin();
 
-    // Register input devices.
     if (!buttonInputManager_.add(lightButtonInput_) ||
-        !buttonInputManager_.add(brakeButtonInput_) || !buttonInputManager_.add(turnButtonInput_) ||
+        !buttonInputManager_.add(brakeButtonInput_) ||
+        !buttonInputManager_.add(turnButtonInput_) ||
         !buttonInputManager_.add(crashButtonInput_) ||
         !buttonInputManager_.add(engineButtonInput_)) {
         return false;
     }
 
-    // Initialize inputs.
     buttonInputManager_.begin(now);
 
-    // Initialize PWM outputs.
-    // Initialize every output even if a previous one fails.
     bool outputsReady = true;
 
     if (!headlights_.begin()) {
@@ -94,38 +146,32 @@ bool ApplicationBootstrap::begin(uint32_t now) {
         outputsReady = false;
     }
 
-    if (!engineLed_.begin()) {
+    if (!outputsReady) {
+        ESP_LOGE("BOOTSTRAP", "PWM outputs initialization failed");
         return false;
     }
 
     if (!airbagLed_.begin()) {
+        ESP_LOGE("BOOTSTRAP", "Airbag LED initialization failed");
         return false;
     }
 
-    if (!outputsReady) {
+    if (!engineLed_.begin()) {
+        ESP_LOGE("BOOTSTRAP", "RGB LED initialization failed");
         return false;
     }
 
     if (!motor_.begin()) {
+        ESP_LOGE("BOOTSTRAP", "Motor initialization failed");
         return false;
     }
 
-    engineController_.update(carController_.state());
-
-    // Register callbacks and synchronize the initial brake state.
-    carController_.begin();
-
-    ambientLightController_.begin(now);
-
-    carController_.setAmbientDark(ambientLightController_.isDark());
-
-    statusIndicatorController_.update(carController_.state());
-
-    // Apply the initial lighting state.
-    lightingController_.update(carController_.state(), now);
+    if (!application_.begin(now)) {
+        ESP_LOGE("BOOTSTRAP", "Application initialization failed");
+        return false;
+    }
 
     initialized_ = true;
-
     return true;
 }
 
@@ -134,21 +180,7 @@ void ApplicationBootstrap::update(uint32_t now) {
         return;
     }
 
-    encoder_.update();
-
-    buttonInputManager_.update(now);
-
-    ambientLightController_.update(now);
-
-    carController_.setAmbientDark(ambientLightController_.isDark());
-
-    carController_.update(now);
-
-    engineController_.update(carController_.state());
-
-    lightingController_.update(carController_.state(), now);
-
-    statusIndicatorController_.update(carController_.state());
+    application_.update(now);
 }
 
 } // namespace bootstrap

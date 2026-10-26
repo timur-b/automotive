@@ -3,19 +3,19 @@
 #include <cstdint>
 
 #include "app/AmbientLightController.h"
+#include "app/Application.h"
 #include "app/CarController.h"
 #include "drivers/AdafruitNeoPixelLed.h"
 #include "drivers/Button.h"
-#include "drivers/Esp32PwmLed.h"
 #include "drivers/Ky040Encoder.h"
 #include "drivers/Photoresistor.h"
+#include "drivers/PwmLed.h"
+#include "drivers/PwmMotor.h"
+#include "engine/EngineController.h"
 #include "indication/StatusIndicatorController.h"
 #include "input/ButtonInput.h"
 #include "input/ButtonInputManager.h"
 #include "lighting/LightingController.h"
-#include "drivers/Esp32PwmMotor.h"
-#include "engine/EngineController.h"
-
 
 namespace bootstrap {
 
@@ -41,10 +41,10 @@ private:
 
     input::ButtonInputManager buttonInputManager_;
 
-    drivers::Esp32PwmLed headlights_;
-    drivers::Esp32PwmLed brakeLights_;
-    drivers::Esp32PwmLed leftTurn_;
-    drivers::Esp32PwmLed rightTurn_;
+    drivers::PwmLed headlights_;
+    drivers::PwmLed brakeLights_;
+    drivers::PwmLed leftTurn_;
+    drivers::PwmLed rightTurn_;
 
     drivers::Ky040Encoder encoder_;
 
@@ -55,14 +55,17 @@ private:
     app::AmbientLightController ambientLightController_;
 
     drivers::AdafruitNeoPixelLed engineLed_;
-    drivers::Esp32PwmLed airbagLed_;
+    drivers::PwmLed airbagLed_;
 
     indication::StatusIndicatorController statusIndicatorController_;
 
-    drivers::Esp32PwmMotor motor_;
+    drivers::PwmMotor motor_;
     engine::EngineController engineController_;
+
+    // Must be declared after all referenced dependencies.
+    app::Application application_;
 
     bool initialized_ = false;
 };
 
-}  // namespace bootstrap
+} // namespace bootstrap
