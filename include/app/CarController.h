@@ -4,6 +4,7 @@
 
 #include "domain/VehicleState.h"
 #include "input/IButtonInput.h"
+#include "interfaces/IEncoderInput.h"
 
 namespace app {
 
@@ -13,7 +14,7 @@ class CarController {
 public:
     CarController(input::IButtonInput& lightButton, input::IButtonInput& brakeButton,
                   input::IButtonInput& turnButton, input::IButtonInput& crashButton,
-                  input::IButtonInput& engineButton);
+                  input::IButtonInput& engineButton, IEncoderInput& encoder);
 
     void begin();
 
@@ -51,5 +52,9 @@ private:
     uint32_t emergencyBrakingStartedAt_ = 0;
 
     bool brakeTimingActive_ = false;
+
+    IEncoderInput& encoder_;
+
+    void handleEncoderDelta(int32_t delta);
 };
 } // namespace app

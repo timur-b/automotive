@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace domain {
 
 enum class EngineState { OFF, RUNNING, STOPPED_BY_CRASH };
@@ -22,6 +24,8 @@ struct VehicleState {
 
     EngineState engineState = EngineState::OFF;
     bool airbagsDeployed = false;
+
+    uint8_t throttlePercent = 50;
 };
 
 } // namespace domain

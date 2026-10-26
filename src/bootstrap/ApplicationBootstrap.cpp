@@ -31,8 +31,15 @@ ApplicationBootstrap::ApplicationBootstrap()
       leftTurn_(Board::LEFT_TURN_LED, Board::LEFT_TURN_PWM_CHANNEL),
       rightTurn_(Board::RIGHT_TURN_LED, Board::RIGHT_TURN_PWM_CHANNEL),
 
+      encoder_({
+          Board::ENCODER_A,
+          Board::ENCODER_B,
+          4,
+          false
+     }),
+
       carController_(lightButtonInput_, brakeButtonInput_, turnButtonInput_, crashButtonInput_,
-                     engineButtonInput_),
+                     engineButtonInput_, encoder_),
 
       lightingController_(headlights_, brakeLights_, leftTurn_, rightTurn_,
                           config::DEFAULT_LIGHTING_CONFIG),
@@ -44,12 +51,17 @@ ApplicationBootstrap::ApplicationBootstrap()
 
       airbagLed_(Board::AIRBAG_LED, Board::AIRBAG_PWM_CHANNEL),
 
-      statusIndicatorController_(engineLed_, airbagLed_) {}
+      statusIndicatorController_(engineLed_, airbagLed_),
+
+      motor_(Board::MOTOR_PWM_PIN, Board::MOTOR_PWM_CHANNEL),
+      engineController_(motor_) {}
 
 bool ApplicationBootstrap::begin(uint32_t now) {
     if (initialized_) {
         return true;
     }
+
+    encoder_.begin();
 
     // Register input devices.
     if (!buttonInputManager_.add(lightButtonInput_) ||
@@ -94,6 +106,12 @@ bool ApplicationBootstrap::begin(uint32_t now) {
         return false;
     }
 
+    if (!motor_.begin()) {
+        return false;
+    }
+
+    engineController_.update(carController_.state());
+
     // Register callbacks and synchronize the initial brake state.
     carController_.begin();
 
@@ -116,6 +134,8 @@ void ApplicationBootstrap::update(uint32_t now) {
         return;
     }
 
+    encoder_.update();
+
     buttonInputManager_.update(now);
 
     ambientLightController_.update(now);
@@ -123,6 +143,8 @@ void ApplicationBootstrap::update(uint32_t now) {
     carController_.setAmbientDark(ambientLightController_.isDark());
 
     carController_.update(now);
+
+    engineController_.update(carController_.state());
 
     lightingController_.update(carController_.state(), now);
 

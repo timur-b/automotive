@@ -2,13 +2,15 @@
 
 #include "config/CarConfig.h"
 
+#include <algorithm>
+
 namespace app {
 
 CarController::CarController(input::IButtonInput& lightButton, input::IButtonInput& brakeButton,
                              input::IButtonInput& turnButton, input::IButtonInput& crashButton,
-                             input::IButtonInput& engineButton)
+                             input::IButtonInput& engineButton, IEncoderInput& encoder)
     : lightButton_(lightButton), brakeButton_(brakeButton), turnButton_(turnButton),
-      crashButton_(crashButton), engineButton_(engineButton), lightContext_{this, CarButton::LIGHT},
+      crashButton_(crashButton), engineButton_(engineButton), encoder_(encoder), lightContext_{this, CarButton::LIGHT},
       brakeContext_{this, CarButton::BRAKE}, turnContext_{this, CarButton::TURN},
       crashContext_{this, CarButton::CRASH}, engineContext_{this, CarButton::ENGINE} {}
 
@@ -29,6 +31,12 @@ void CarController::begin() {
 }
 
 void CarController::update(uint32_t now) {
+    const int32_t encoderDelta = encoder_.consumeDelta();
+
+    if (encoderDelta != 0) {
+        handleEncoderDelta(encoderDelta);
+    }
+
     if (!state_.brakePressed) {
         brakeTimingActive_ = false;
         state_.emergencyBrakePhase = domain::EmergencyBrakePhase::OFF;
@@ -51,6 +59,29 @@ void CarController::update(uint32_t now) {
     } else {
         state_.emergencyBrakePhase = domain::EmergencyBrakePhase::HAZARD_FLASHING;
     }
+}
+
+void CarController::handleEncoderDelta(int32_t delta) {
+    if (state_.engineState != domain::EngineState::RUNNING || delta == 0) {
+        return;
+    }
+    
+    constexpr int32_t MIN_POWER = 50;
+    constexpr int32_t MAX_POWER = 100;
+    constexpr int32_t POWER_STEP = 5;
+
+    const int64_t requested =
+        static_cast<int64_t>(state_.throttlePercent) +
+        static_cast<int64_t>(delta) * POWER_STEP;
+
+    const int64_t clamped =
+        std::clamp(
+            requested,
+            static_cast<int64_t>(MIN_POWER),
+            static_cast<int64_t>(MAX_POWER)
+        );
+
+    state_.throttlePercent = static_cast<uint8_t>(clamped);
 }
 
 void CarController::setAmbientDark(bool dark) {
@@ -149,6 +180,7 @@ void CarController::onButtonEvent(CarButton button, input::ButtonEdge edge,
             if (gesture == input::ButtonGesture::SINGLE) {
                 switch (state_.engineState) {
                     case domain::EngineState::OFF:
+                        state_.throttlePercent = 50;
                         state_.engineState = domain::EngineState::RUNNING;
                         break;
 
