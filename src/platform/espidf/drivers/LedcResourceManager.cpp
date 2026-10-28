@@ -1,4 +1,5 @@
 #include "LedcResourceManager.h"
+#include "driver/gpio.h"
 
 namespace drivers {
 
@@ -19,12 +20,17 @@ esp_err_t LedcResourceManager::configureTimer(
     auto& state = timers_[index];
 
     if (state.configured) {
-        if (state.frequencyHz != frequencyHz ||
-            state.resolution != resolution) {
-            return ESP_ERR_INVALID_STATE;
+        const bool sameConfiguration =
+            state.frequencyHz == frequencyHz &&
+            state.resolution == resolution;
+
+        if (sameConfiguration) {
+            return ESP_OK;
         }
 
-        return ESP_OK;
+        if (state.users > 0) {
+            return ESP_ERR_INVALID_STATE;
+        }
     }
 
     ledc_timer_config_t config = {};
@@ -97,6 +103,70 @@ esp_err_t LedcResourceManager::registerChannel(
     state.allocated = true;
     state.timer = config.timer;
     state.gpio = config.gpio;
+
+    ++timers_[timerIndex].users;
+
+    return ESP_OK;
+}
+
+esp_err_t LedcResourceManager::unregisterChannel(
+    ledc_channel_t channel
+) {
+    const auto index = static_cast<uint8_t>(channel);
+
+    if (index >= kChannelCount) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    auto& state = channels_[index];
+
+    if (!state.allocated) {
+        return ESP_OK;
+    }
+
+    // Stop PWM generation and drive the output LOW.
+    esp_err_t result = ledc_stop(
+        LEDC_LOW_SPEED_MODE,
+        channel,
+        0
+    );
+
+    if (result != ESP_OK) {
+        return result;
+    }
+
+    const auto gpio = static_cast<gpio_num_t>(state.gpio);
+
+    // Reset the GPIO configuration and detach its peripheral routing.
+    result = gpio_reset_pin(gpio);
+
+    if (result != ESP_OK) {
+        return result;
+    }
+
+    // Prepare LOW level before enabling the GPIO output driver.
+    result = gpio_set_level(gpio, 0);
+
+    if (result != ESP_OK) {
+        return result;
+    }
+
+    // Keep the MOSFET gate actively driven LOW.
+    result = gpio_set_direction(gpio, GPIO_MODE_OUTPUT);
+
+    if (result != ESP_OK) {
+        return result;
+    }
+
+    // Release the channel and update the timer reference count.
+    const auto timerIndex = static_cast<uint8_t>(state.timer);
+    auto& timer = timers_[timerIndex];
+
+    state.allocated = false;
+
+    if (timer.users > 0) {
+        --timer.users;
+    }
 
     return ESP_OK;
 }

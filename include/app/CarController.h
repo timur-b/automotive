@@ -17,7 +17,7 @@ public:
                   input::IButtonInput& engineButton, IEncoderInput& encoder);
 
     void begin();
-
+    void end();
     void update(uint32_t now);
 
     void setAmbientDark(bool dark);

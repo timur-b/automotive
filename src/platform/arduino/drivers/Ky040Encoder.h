@@ -26,7 +26,9 @@ public:
     Ky040Encoder(const Ky040Encoder&) = delete;
     Ky040Encoder& operator=(const Ky040Encoder&) = delete;
 
-    void begin() override;
+    bool begin() override;
+    bool end() override;
+
     void update() override;
     int32_t consumeDelta() override;
 

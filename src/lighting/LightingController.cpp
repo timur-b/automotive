@@ -126,4 +126,23 @@ void LightingController::update(const domain::VehicleState &state,
     rightTurn_.update(now);
 }
 
+void LightingController::Channel::reset() {
+    target = OFF;
+    animator.reset(OFF);
+    led.setBrightness(OFF);
+}
+
+void LightingController::reset() {
+    headlights_.reset();
+    brakeLights_.reset();
+    leftTurn_.reset();
+    rightTurn_.reset();
+
+    previousTurnSignal_ = domain::TurnSignal::OFF;
+    previousCrashDetected_ = false;
+    previousEmergencyBrakePhase_ = domain::EmergencyBrakePhase::OFF;
+
+    blinkStartedAt_ = 0;
+}
+
 } // namespace lighting

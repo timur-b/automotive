@@ -17,7 +17,8 @@ public:
 
     AmbientLightController(input::ILightSensor& sensor, Config config);
 
-    void begin(uint32_t now);
+    bool begin(uint32_t now);
+    bool end();
     void update(uint32_t now);
 
     bool isDark() const;

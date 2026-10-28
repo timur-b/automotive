@@ -5,20 +5,49 @@ namespace app {
 AmbientLightController::AmbientLightController(input::ILightSensor& sensor, Config config)
     : sensor_(sensor), config_(config) {}
 
-void AmbientLightController::begin(uint32_t now) {
-    sensor_.begin();
+bool AmbientLightController::begin(uint32_t now) {
+    if (initialized_) {
+        return true;
+    }
+
+    if (!sensor_.begin()) {
+        return false;
+    }
 
     const uint16_t initial = sensor_.readRaw();
 
-    filteredScaled_ = static_cast<uint32_t>(initial) << config_.filterShift;
+    filteredScaled_ =
+        static_cast<uint32_t>(initial) << config_.filterShift;
 
     lastSampleAt_ = now;
-    initialized_ = true;
 
     const uint16_t threshold = static_cast<uint16_t>(
-        (static_cast<uint32_t>(config_.darkThreshold) + config_.brightThreshold) / 2U);
+        (static_cast<uint32_t>(config_.darkThreshold) +
+         config_.brightThreshold) / 2U
+    );
 
-    dark_ = config_.darkerMeansLowerAdc ? initial <= threshold : initial >= threshold;
+    dark_ = config_.darkerMeansLowerAdc
+        ? initial <= threshold
+        : initial >= threshold;
+
+    initialized_ = true;
+
+    return true;
+}
+
+bool AmbientLightController::end() {
+    const bool success = sensor_.end();
+
+    if (!success) {
+        return false;
+    }
+
+    initialized_ = false;
+    filteredScaled_ = 0;
+    lastSampleAt_ = 0;
+    dark_ = false;
+
+    return true;
 }
 
 void AmbientLightController::update(uint32_t now) {

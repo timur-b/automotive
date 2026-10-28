@@ -12,6 +12,8 @@ public:
 
     void update(const domain::VehicleState& state);
 
+    void reset();
+    
 private:
     output::IRgbLed& engineLed_;
     output::IPwmLed& airbagLed_;

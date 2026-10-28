@@ -16,12 +16,16 @@ class Button final : public input::IButton {
 public:
     Button(uint8_t pin, ButtonPolarity polarity);
 
-    void begin() override;
+    bool begin() override;
+    bool end() override;
+
     bool isPressed() const override;
 
 private:
     uint8_t pin_;
     ButtonPolarity polarity_;
+
+    bool initialized_ = false;
 };
 
 } // namespace drivers

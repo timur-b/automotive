@@ -31,6 +31,23 @@ void CarController::begin() {
     state_.brakePressed = brakeButton_.isPressed();
 }
 
+void CarController::end() {
+    // Unregister button callbacks.
+    lightButton_.setCallback(nullptr);
+    brakeButton_.setCallback(nullptr);
+    turnButton_.setCallback(nullptr);
+    crashButton_.setCallback(nullptr);
+    engineButton_.setCallback(nullptr);
+
+    // Reset vehicle state.
+    state_ = domain::VehicleState{};
+
+    // Reset emergency braking timers.
+    brakePressedAt_ = 0;
+    emergencyBrakingStartedAt_ = 0;
+    brakeTimingActive_ = false;
+}
+
 void CarController::update(uint32_t now) {
     const int32_t encoderDelta = encoder_.consumeDelta();
 

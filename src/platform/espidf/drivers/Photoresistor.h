@@ -15,7 +15,8 @@ public:
     Photoresistor(const Photoresistor&) = delete;
     Photoresistor& operator=(const Photoresistor&) = delete;
 
-    void begin() override;
+    bool begin() override;
+    bool end() override;
     uint16_t readRaw() override;
 
 private:

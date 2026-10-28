@@ -38,4 +38,13 @@ void StatusIndicatorController::update(const domain::VehicleState& state) {
     firstUpdate_ = false;
 }
 
+void StatusIndicatorController::reset() {
+    firstUpdate_ = true;
+    previousEngineState_ = domain::EngineState::OFF;
+    previousAirbagsDeployed_ = false;
+
+    engineLed_.setColor({0, 0, 0});
+    airbagLed_.setBrightness(0);
+}
+
 } // namespace indication

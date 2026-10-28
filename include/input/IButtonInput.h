@@ -11,7 +11,9 @@ public:
 
     virtual ~IButtonInput() = default;
 
-    virtual void begin(uint32_t now) = 0;
+    virtual bool begin(uint32_t now) = 0;
+    virtual bool end() = 0;
+
     virtual void update(uint32_t now) = 0;
 
     virtual void setCallback(EventCallback callback, void* context = nullptr) = 0;

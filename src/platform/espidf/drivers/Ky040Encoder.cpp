@@ -14,25 +14,19 @@ Ky040Encoder::Ky040Encoder(const EncoderConfig& config)
     : config_(config) {}
 
 Ky040Encoder::~Ky040Encoder() {
-    if (!initialized_) {
-        return;
-    }
-
-    const auto pinA = static_cast<gpio_num_t>(config_.pinA);
-    const auto pinB = static_cast<gpio_num_t>(config_.pinB);
-
-    gpio_intr_disable(pinA);
-    gpio_intr_disable(pinB);
-
-    gpio_isr_handler_remove(pinA);
-    gpio_isr_handler_remove(pinB);
+    end();
 }
 
-void Ky040Encoder::begin() {
+bool Ky040Encoder::begin() {
     if (initialized_) {
-        return;
+        return true;
     }
 
+    if (handlerARegistered_ || handlerBRegistered_) {
+        ESP_LOGE(TAG, "Cannot initialize encoder: ISR handlers still registered");
+        return false;
+    }
+    
     gpio_config_t gpioConfig = {};
 
     gpioConfig.pin_bit_mask =
@@ -49,7 +43,7 @@ void Ky040Encoder::begin() {
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "GPIO initialization failed: %s",
                  esp_err_to_name(err));
-        return;
+        return false;
     }
 
     const bool a = gpio_get_level(
@@ -73,18 +67,25 @@ void Ky040Encoder::begin() {
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to register GPIO A ISR: %s",
                  esp_err_to_name(err));
-        return;
+        return false;
     }
+
+    handlerARegistered_ = true;
 
     err = gpio_isr_handler_add(pinB, &Ky040Encoder::gpioIsrHandler, this);
 
     if (err != ESP_OK) {
-        gpio_isr_handler_remove(pinA);
-
         ESP_LOGE(TAG, "Failed to register GPIO B ISR: %s",
                  esp_err_to_name(err));
-        return;
+
+        if (!end()) {
+            ESP_LOGE(TAG, "Encoder rollback failed");
+        }
+
+        return false;
     }
+
+    handlerBRegistered_ = true;
 
     err = gpio_set_intr_type(pinA, GPIO_INTR_ANYEDGE);
 
@@ -92,21 +93,81 @@ void Ky040Encoder::begin() {
         err = gpio_set_intr_type(pinB, GPIO_INTR_ANYEDGE);
     }
 
+    if (err == ESP_OK) {
+        err = gpio_intr_enable(pinA);
+    }
+
+    if (err == ESP_OK) {
+        err = gpio_intr_enable(pinB);
+    }
+
     if (err != ESP_OK) {
-        gpio_intr_disable(pinA);
-        gpio_intr_disable(pinB);
-
-        gpio_isr_handler_remove(pinA);
-        gpio_isr_handler_remove(pinB);
-
         ESP_LOGE(TAG, "Failed to enable encoder interrupts: %s",
                  esp_err_to_name(err));
-        return;
+
+        if (!end()) {
+            ESP_LOGE(TAG, "Encoder rollback failed");
+        }
+
+        return false;
     }
 
     initialized_ = true;
 
     ESP_LOGI(TAG, "Encoder GPIO interrupts registered");
+
+    return true;
+}
+
+bool Ky040Encoder::end() {
+    const auto pinA = static_cast<gpio_num_t>(config_.pinA);
+    const auto pinB = static_cast<gpio_num_t>(config_.pinB);
+
+    bool success = true;
+
+    if (handlerARegistered_) {
+        const esp_err_t err = gpio_intr_disable(pinA);
+
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to disable GPIO A interrupt: %s",
+                     esp_err_to_name(err));
+            success = false;
+        }
+
+        const esp_err_t removeErr = gpio_isr_handler_remove(pinA);
+
+        if (removeErr == ESP_OK) {
+            handlerARegistered_ = false;
+        } else {
+            ESP_LOGE(TAG, "Failed to remove GPIO A ISR: %s",
+                     esp_err_to_name(removeErr));
+            success = false;
+        }
+    }
+
+    if (handlerBRegistered_) {
+        const esp_err_t err = gpio_intr_disable(pinB);
+
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to disable GPIO B interrupt: %s",
+                     esp_err_to_name(err));
+            success = false;
+        }
+
+        const esp_err_t removeErr = gpio_isr_handler_remove(pinB);
+
+        if (removeErr == ESP_OK) {
+            handlerBRegistered_ = false;
+        } else {
+            ESP_LOGE(TAG, "Failed to remove GPIO B ISR: %s",
+                     esp_err_to_name(removeErr));
+            success = false;
+        }
+    }
+
+    initialized_ = false;
+
+    return success && !handlerARegistered_ && !handlerBRegistered_;
 }
 
 void Ky040Encoder::update() {

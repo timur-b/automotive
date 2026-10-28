@@ -10,8 +10,11 @@ namespace drivers {
 class AdafruitNeoPixelLed : public output::IRgbLed {
 public:
     explicit AdafruitNeoPixelLed(uint8_t pin);
+    ~AdafruitNeoPixelLed();
 
     bool begin() override;
+    bool end() override;
+    
     void setColor(output::RgbColor color) override;
 
 private:

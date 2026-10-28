@@ -7,17 +7,12 @@ Ky040Encoder::Ky040Encoder(const EncoderConfig& config)
     : config_(config) {}
 
 Ky040Encoder::~Ky040Encoder() {
-    if (!initialized_) {
-        return;
-    }
-
-    detachInterrupt(config_.pinA);
-    detachInterrupt(config_.pinB);
+    end();
 }
 
-void Ky040Encoder::begin() {
+bool Ky040Encoder::begin() {
     if (initialized_) {
-        return;
+        return true;
     }
 
     pinMode(config_.pinA, INPUT_PULLUP);
@@ -26,10 +21,14 @@ void Ky040Encoder::begin() {
     const bool a = digitalRead(config_.pinA);
     const bool b = digitalRead(config_.pinB);
 
+    portENTER_CRITICAL(&isrMux_);
+
     decoder_.reset(a, b);
 
     transitionCount_ = 0;
     delta_ = 0;
+
+    portEXIT_CRITICAL(&isrMux_);
 
     attachInterruptArg(
         config_.pinA,
@@ -46,6 +45,27 @@ void Ky040Encoder::begin() {
     );
 
     initialized_ = true;
+    return true;
+}
+
+bool Ky040Encoder::end() {
+    if (!initialized_) {
+        return true;
+    }
+
+    // Disable GPIO interrupts before clearing the encoder state.
+    detachInterrupt(config_.pinA);
+    detachInterrupt(config_.pinB);
+
+    portENTER_CRITICAL(&isrMux_);
+
+    transitionCount_ = 0;
+    delta_ = 0;
+    initialized_ = false;
+
+    portEXIT_CRITICAL(&isrMux_);
+
+    return true;
 }
 
 void Ky040Encoder::update() {

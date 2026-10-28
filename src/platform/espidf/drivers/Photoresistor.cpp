@@ -14,15 +14,14 @@ Photoresistor::Photoresistor(uint8_t pin)
     : pin_(pin) {}
 
 Photoresistor::~Photoresistor() {
-    if (adcHandle_ != nullptr) {
-        adc_oneshot_del_unit(adcHandle_);
-        adcHandle_ = nullptr;
+    if (!end()) {
+        ESP_LOGE(TAG, "Failed to release ADC resources");
     }
 }
 
-void Photoresistor::begin() {
+bool Photoresistor::begin() {
     if (initialized_) {
-        return;
+        return true;
     }
 
     adc_unit_t unit;
@@ -37,7 +36,7 @@ void Photoresistor::begin() {
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "GPIO %u is not an ADC pin",
                  static_cast<unsigned>(pin_));
-        return;
+        return false;
     }
 
     adc_oneshot_unit_init_cfg_t unitConfig = {};
@@ -48,7 +47,7 @@ void Photoresistor::begin() {
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "ADC unit initialization failed: %s",
                  esp_err_to_name(err));
-        return;
+        return false;
     }
 
     adc_oneshot_chan_cfg_t channelConfig = {};
@@ -65,13 +64,42 @@ void Photoresistor::begin() {
         ESP_LOGE(TAG, "ADC channel configuration failed: %s",
                  esp_err_to_name(err));
 
-        adc_oneshot_del_unit(adcHandle_);
-        adcHandle_ = nullptr;
-        return;
+        const esp_err_t cleanupErr = adc_oneshot_del_unit(adcHandle_);
+
+        if (cleanupErr == ESP_OK) {
+            adcHandle_ = nullptr;
+        } else {
+            ESP_LOGE(TAG, "ADC cleanup failed: %s",
+                     esp_err_to_name(cleanupErr));
+        }
+
+        return false;
     }
 
     channel_ = channel;
     initialized_ = true;
+
+    return true;
+}
+
+bool Photoresistor::end() {
+    if (adcHandle_ == nullptr) {
+        initialized_ = false;
+        return true;
+    }
+
+    const esp_err_t err = adc_oneshot_del_unit(adcHandle_);
+
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to delete ADC unit: %s",
+                 esp_err_to_name(err));
+        return false;
+    }
+
+    adcHandle_ = nullptr;
+    initialized_ = false;
+
+    return true;
 }
 
 uint16_t Photoresistor::readRaw() {

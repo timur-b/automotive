@@ -18,6 +18,12 @@ PwmMotor::PwmMotor(
       pin_(pin),
       channel_(channel) {}
 
+PwmMotor::~PwmMotor() {
+    if (!end()) {
+        ESP_LOGE(TAG, "Failed to release motor resources");
+    }
+}
+
 bool PwmMotor::begin() {
     if (initialized_) {
         return true;
@@ -41,8 +47,25 @@ bool PwmMotor::begin() {
     }
 
     initialized_ = true;
-    stop();
+    return true;
+}
 
+bool PwmMotor::end() {
+    if (!initialized_) {
+        return true;
+    }
+
+    const auto channel = static_cast<ledc_channel_t>(channel_);
+
+    const esp_err_t err = ledc_.unregisterChannel(channel);
+
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to unregister motor PWM channel: %s",
+                 esp_err_to_name(err));
+        return false;
+    }
+
+    initialized_ = false;
     return true;
 }
 

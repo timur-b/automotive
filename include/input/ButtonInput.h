@@ -17,13 +17,29 @@ public:
     ButtonInput(IButton& button, uint32_t debounceMs = 30, GestureConfig gestureConfig = {})
         : button_(button), debouncer_(debounceMs), recognizer_(gestureConfig) {}
 
-    void begin(uint32_t now) {
-        button_.begin();
+    bool begin(uint32_t now) override {
+        if (initialized_) {
+            return true;
+        }
+
+        if (!button_.begin()) {
+            return false;
+        }
 
         debouncer_.reset(button_.isPressed(), now);
         recognizer_.reset();
 
         initialized_ = true;
+        return true;
+    }
+
+    bool end() override {
+        initialized_ = false;
+
+        recognizer_.reset();
+        debouncer_.reset(false, 0);
+
+        return button_.end();
     }
 
     void setCallback(EventCallback callback, void* context = nullptr) {
@@ -58,7 +74,7 @@ public:
     }
 
     bool isPressed() const {
-        return debouncer_.state();
+        return initialized_ && debouncer_.state();
     }
 
 private:

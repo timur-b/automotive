@@ -24,7 +24,9 @@ public:
     Ky040Encoder(const Ky040Encoder&) = delete;
     Ky040Encoder& operator=(const Ky040Encoder&) = delete;
 
-    void begin() override;
+    bool begin() override;
+    bool end() override;
+
     void update() override;
     int32_t consumeDelta() override;
 
@@ -40,6 +42,8 @@ private:
 
     portMUX_TYPE isrMux_ = portMUX_INITIALIZER_UNLOCKED;
 
+    bool handlerARegistered_ = false;
+    bool handlerBRegistered_ = false;
     bool initialized_ = false;
 };
 

@@ -13,6 +13,8 @@ public:
 
     void update(const domain::VehicleState& state);
 
+    void reset();
+    
 private:
     IMotor& motor_;
 

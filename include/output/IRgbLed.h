@@ -15,6 +15,8 @@ public:
     virtual ~IRgbLed() = default;
 
     virtual bool begin() = 0;
+    virtual bool end() = 0;
+    
     virtual void setColor(RgbColor color) = 0;
 };
 

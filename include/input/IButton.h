@@ -8,7 +8,9 @@ class IButton {
 public:
     virtual ~IButton() = default;
 
-    virtual void begin() = 0;
+    virtual bool begin() = 0;
+    virtual bool end() = 0;
+    
     virtual bool isPressed() const = 0;
 };
 

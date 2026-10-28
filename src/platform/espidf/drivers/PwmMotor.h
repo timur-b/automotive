@@ -10,8 +10,13 @@ namespace drivers {
 class PwmMotor final : public IMotor {
 public:
     PwmMotor(LedcResourceManager& ledc, uint8_t pin, uint8_t channel);
+    ~PwmMotor() override;
 
-    bool begin();
+    PwmMotor(const PwmMotor&) = delete;
+    PwmMotor& operator=(const PwmMotor&) = delete;
+
+    bool begin() override;
+    bool end() override;
 
     void setPower(uint8_t percent) override;
     void stop() override;

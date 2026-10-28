@@ -25,6 +25,7 @@ public:
     );
 
     bool begin(uint32_t now);
+    bool end();
     void update(uint32_t now);
 
 private:

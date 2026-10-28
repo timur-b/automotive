@@ -6,9 +6,14 @@ namespace drivers {
 
 Photoresistor::Photoresistor(uint8_t pin) : pin_(pin) {}
 
-void Photoresistor::begin() {
+bool Photoresistor::begin() {
     pinMode(pin_, INPUT);
     analogReadResolution(12);
+    return true;
+}
+
+bool Photoresistor::end() {
+    return true;
 }
 
 uint16_t Photoresistor::readRaw() {

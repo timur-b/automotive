@@ -16,6 +16,8 @@ public:
     RmtRgbLed& operator=(const RmtRgbLed&) = delete;
 
     bool begin() override;
+    bool end() override;
+    
     void setColor(output::RgbColor color) override;
 
 private:

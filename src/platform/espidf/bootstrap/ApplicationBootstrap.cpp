@@ -114,76 +114,157 @@ ApplicationBootstrap::ApplicationBootstrap()
 
 
 bool ApplicationBootstrap::begin(uint32_t now) {
+    if (cleanupFailed_) {
+        ESP_LOGE("BOOTSTRAP", "Cannot initialize after failed cleanup");
+        return false;
+    }
+
     if (initialized_) {
         return true;
     }
 
+    const auto fail = [this](const char* message) -> bool {
+        ESP_LOGE("BOOTSTRAP", "%s", message);
+
+        if (!end()) {
+            ESP_LOGE("BOOTSTRAP", "Rollback failed");
+        }
+
+        return false;
+    };
+
     const esp_err_t err = gpio_install_isr_service(0);
 
-    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
+    if (err == ESP_OK) {
+        ownsGpioIsrService_ = true;
+    } else if (err != ESP_ERR_INVALID_STATE) {
         ESP_LOGE("BOOTSTRAP",
                 "GPIO ISR service initialization failed: %s",
                 esp_err_to_name(err));
-        return false;
+        return fail("GPIO ISR service initialization failed");
     }
 
-    encoder_.begin();
+    if (!encoder_.begin()) {
+        return fail("Encoder initialization failed");
+    }
 
     if (!buttonInputManager_.add(lightButtonInput_) ||
         !buttonInputManager_.add(brakeButtonInput_) ||
         !buttonInputManager_.add(turnButtonInput_) ||
         !buttonInputManager_.add(crashButtonInput_) ||
         !buttonInputManager_.add(engineButtonInput_)) {
-        return false;
+        return fail("Button input registration failed");
     }
 
-    buttonInputManager_.begin(now);
-
-    bool outputsReady = true;
+    if (!buttonInputManager_.begin(now)) {
+        return fail("Button input initialization failed");
+    }
 
     if (!headlights_.begin()) {
-        outputsReady = false;
+        return fail("Headlights initialization failed");
     }
 
     if (!brakeLights_.begin()) {
-        outputsReady = false;
+        return fail("Brake lights initialization failed");
     }
 
     if (!leftTurn_.begin()) {
-        outputsReady = false;
+        return fail("Left turn initialization failed");
     }
 
     if (!rightTurn_.begin()) {
-        outputsReady = false;
-    }
-
-    if (!outputsReady) {
-        ESP_LOGE("BOOTSTRAP", "PWM outputs initialization failed");
-        return false;
+        return fail("Right turn initialization failed");
     }
 
     if (!airbagLed_.begin()) {
-        ESP_LOGE("BOOTSTRAP", "Airbag LED initialization failed");
-        return false;
+        return fail("Airbag LED initialization failed");
     }
 
     if (!engineLed_.begin()) {
-        ESP_LOGE("BOOTSTRAP", "RGB LED initialization failed");
-        return false;
+        return fail("RGB LED initialization failed");
     }
 
     if (!motor_.begin()) {
-        ESP_LOGE("BOOTSTRAP", "Motor initialization failed");
-        return false;
+        return fail("Motor initialization failed");
     }
 
     if (!application_.begin(now)) {
-        ESP_LOGE("BOOTSTRAP", "Application initialization failed");
-        return false;
+        return fail("Application initialization failed");
     }
 
     initialized_ = true;
     return true;
+}
+
+bool ApplicationBootstrap::end() {
+    ESP_LOGI("BOOTSTRAP", "Bootstrap shutdown started");
+    
+    initialized_ = false;
+
+    bool success = true;
+
+    // Reset application state and stop handling input events.
+    if (!application_.end()) {
+        ESP_LOGE("BOOTSTRAP", "Application shutdown failed");
+        success = false;
+    }
+
+    lightingController_.reset();
+    engineController_.reset();
+    statusIndicatorController_.reset();
+
+    if (!motor_.end()) {
+        ESP_LOGE("BOOTSTRAP", "Motor shutdown failed");
+        success = false;
+    }
+
+    if (!engineLed_.end()) {
+        ESP_LOGE("BOOTSTRAP", "RGB LED shutdown failed");
+        success = false;
+    }
+
+    if (!airbagLed_.end()) {
+        ESP_LOGE("BOOTSTRAP", "Airbag LED shutdown failed");
+        success = false;
+    }
+
+    if (!rightTurn_.end()) {
+        ESP_LOGE("BOOTSTRAP", "Right turn shutdown failed");
+        success = false;
+    }
+
+    if (!leftTurn_.end()) {
+        ESP_LOGE("BOOTSTRAP", "Left turn shutdown failed");
+        success = false;
+    }
+
+    if (!brakeLights_.end()) {
+        ESP_LOGE("BOOTSTRAP", "Brake lights shutdown failed");
+        success = false;
+    }
+
+    if (!headlights_.end()) {
+        ESP_LOGE("BOOTSTRAP", "Headlights shutdown failed");
+        success = false;
+    }
+
+    if (!buttonInputManager_.end()) {
+        ESP_LOGE("ApplicationBootstrap", "Button input shutdown failed");
+        success = false;
+    }
+
+    if (!encoder_.end()) {
+        ESP_LOGE("BOOTSTRAP", "Encoder shutdown failed");
+        success = false;
+    }
+
+    if (ownsGpioIsrService_) {
+        gpio_uninstall_isr_service();
+        ownsGpioIsrService_ = false;
+    }
+
+    cleanupFailed_ = !success;
+    return success;
 }
 
 void ApplicationBootstrap::update(uint32_t now) {

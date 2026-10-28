@@ -24,6 +24,13 @@ PwmLed::PwmLed(
       resolutionBits_(resolutionBits),
       activeHigh_(activeHigh) {}
 
+PwmLed::~PwmLed() {
+    if (!end()) {
+        ESP_LOGE(kTag, "Failed to release LEDC channel %u",
+                 static_cast<unsigned>(channel_));
+    }
+}
+
 bool PwmLed::begin() {
     if (initialized_) {
         return true;
@@ -48,8 +55,26 @@ bool PwmLed::begin() {
     }
 
     initialized_ = true;
-    setBrightness(0);
+    return true;
+}
 
+bool PwmLed::end() {
+    if (!initialized_) {
+        return true;
+    }
+
+    const auto channel = static_cast<ledc_channel_t>(channel_);
+
+    const esp_err_t err = ledc_.unregisterChannel(channel);
+
+    if (err != ESP_OK) {
+        ESP_LOGE(kTag, "Failed to unregister LEDC channel %u: %s",
+                 static_cast<unsigned>(channel_),
+                 esp_err_to_name(err));
+        return false;
+    }
+
+    initialized_ = false;
     return true;
 }
 

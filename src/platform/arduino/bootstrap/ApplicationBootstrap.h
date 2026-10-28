@@ -24,6 +24,7 @@ public:
     ApplicationBootstrap();
 
     bool begin(uint32_t now);
+    bool end();
     void update(uint32_t now);
 
 private:
@@ -66,6 +67,7 @@ private:
     app::Application application_;
 
     bool initialized_ = false;
+    bool cleanupFailed_ = false;
 };
 
 } // namespace bootstrap

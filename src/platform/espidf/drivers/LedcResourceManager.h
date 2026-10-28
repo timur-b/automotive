@@ -24,7 +24,8 @@ public:
     LedcResourceManager& operator=(const LedcResourceManager&) = delete;
 
     esp_err_t registerChannel(const ChannelConfig& config);
-
+    esp_err_t unregisterChannel(ledc_channel_t channel);
+    
     esp_err_t setDuty(
         ledc_channel_t channel,
         uint32_t duty
@@ -35,6 +36,7 @@ private:
         bool configured = false;
         uint32_t frequencyHz = 0;
         ledc_timer_bit_t resolution = LEDC_TIMER_12_BIT;
+        uint8_t users = 0;
     };
 
     struct ChannelState {

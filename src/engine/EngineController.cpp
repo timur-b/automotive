@@ -27,4 +27,10 @@ void EngineController::update(const domain::VehicleState& state) {
     firstUpdate_ = false;
 }
 
+void EngineController::reset() {
+    previousPower_ = 0;
+    firstUpdate_ = true;
+    motor_.stop();
+}
+
 } // namespace engine

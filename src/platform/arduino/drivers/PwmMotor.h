@@ -9,8 +9,10 @@ namespace drivers {
 class PwmMotor final : public IMotor {
 public:
     PwmMotor(uint8_t pin, uint8_t channel);
+    ~PwmMotor();
 
-    bool begin();
+    bool begin() override;
+    bool end() override;
 
     void setPower(uint8_t percent) override;
     void stop() override;
@@ -23,6 +25,8 @@ private:
 
     uint8_t pin_;
     uint8_t channel_;
+
+    bool initialized_ = false;
 };
 
 } // namespace drivers

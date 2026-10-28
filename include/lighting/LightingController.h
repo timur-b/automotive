@@ -25,6 +25,8 @@ public:
                        output::IPwmLed& leftTurn, output::IPwmLed& rightTurn, Config config);
 
     void update(const domain::VehicleState& state, uint32_t now);
+    
+    void reset();
 
 private:
     struct Channel {
@@ -35,6 +37,8 @@ private:
         void setTarget(uint16_t brightness, uint32_t durationMs, uint32_t now);
 
         void update(uint32_t now);
+
+        void reset();
     };
 
     Channel headlights_;

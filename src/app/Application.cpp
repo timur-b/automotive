@@ -23,12 +23,14 @@ bool Application::begin(uint32_t now) {
         return true;
     }
 
+    if (!ambientLightController_.begin(now)) {
+        return false;
+    }
+
     engineController_.update(carController_.state());
 
     // Register callbacks and synchronize the initial brake state.
     carController_.begin();
-
-    ambientLightController_.begin(now);
 
     carController_.setAmbientDark(ambientLightController_.isDark());
 
@@ -39,6 +41,16 @@ bool Application::begin(uint32_t now) {
 
     initialized_ = true;
     return true;
+}
+
+bool Application::end() {
+    initialized_ = false;
+
+    // Stop handling vehicle events and reset its logical state.
+    carController_.end();
+
+    // Release resources owned by the ambient light subsystem.
+    return ambientLightController_.end();
 }
 
 void Application::update(uint32_t now) {

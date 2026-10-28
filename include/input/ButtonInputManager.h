@@ -13,7 +13,9 @@ public:
 
     bool add(IButtonInput& input);
 
-    void begin(uint32_t now);
+    bool begin(uint32_t now);
+    bool end();
+    
     void update(uint32_t now);
 
 private:

@@ -13,9 +13,8 @@ RmtRgbLed::RmtRgbLed(uint8_t pin)
     : pin_(pin) {}
 
 RmtRgbLed::~RmtRgbLed() {
-    if (strip_ != nullptr) {
-        led_strip_del(strip_);
-        strip_ = nullptr;
+    if (!end()) {
+        ESP_LOGE(TAG, "Failed to release RGB LED resources");
     }
 }
 
@@ -61,6 +60,34 @@ bool RmtRgbLed::begin() {
 
     initialized_ = true;
     return true;
+}
+
+bool RmtRgbLed::end() {
+    if (strip_ == nullptr) {
+        initialized_ = false;
+        return true;
+    }
+
+    // Turn off the LED before releasing RMT resources.
+    const esp_err_t clearErr = led_strip_clear(strip_);
+
+    if (clearErr != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to clear RGB LED: %s",
+                 esp_err_to_name(clearErr));
+    }
+
+    const esp_err_t deleteErr = led_strip_del(strip_);
+
+    if (deleteErr != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to delete RGB LED strip: %s",
+                 esp_err_to_name(deleteErr));
+        return false;
+    }
+
+    strip_ = nullptr;
+    initialized_ = false;
+
+    return clearErr == ESP_OK;
 }
 
 void RmtRgbLed::setColor(output::RgbColor color) {
