@@ -22,7 +22,7 @@ idf_component_register(
         "platform/espidf/drivers/PwmMotor.cpp"
         "platform/espidf/drivers/Button.cpp"
         "platform/espidf/drivers/Ky040Encoder.cpp"
-        "platform/espidf/drivers/RmtRgbLed.cpp"
+        "platform/espidf/drivers/GpioOutput.cpp"
         "platform/espidf/drivers/Photoresistor.cpp"
         "platform/espidf/bootstrap/ApplicationBootstrap.cpp"
     INCLUDE_DIRS
@@ -32,7 +32,6 @@ idf_component_register(
         esp_driver_ledc
         esp_adc
         esp_psram
-        led_strip
     PRIV_INCLUDE_DIRS
         "platform/espidf"
 )

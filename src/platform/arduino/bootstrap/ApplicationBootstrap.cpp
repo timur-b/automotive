@@ -63,7 +63,7 @@ ApplicationBootstrap::ApplicationBootstrap()
           config::DEFAULT_AMBIENT_LIGHT_CONFIG
       ),
 
-      engineLed_(Board::RGB_LED),
+      engineLed_(Board::ENGINE_LED),
 
       airbagLed_(Board::AIRBAG_LED, Board::AIRBAG_PWM_CHANNEL),
 
@@ -143,7 +143,7 @@ bool ApplicationBootstrap::begin(uint32_t now) {
     }
 
     if (!engineLed_.begin()) {
-        return fail("RGB LED initialization failed");
+        return fail("Engine LED initialization failed");
     }
 
     // Initialize the motor driver.
@@ -182,9 +182,9 @@ bool ApplicationBootstrap::end() {
         success = false;
     }
 
-    // Turn off the RGB LED.
+    // Turn off the engine indicator and release its GPIO.
     if (!engineLed_.end()) {
-        Serial.println("RGB LED shutdown failed");
+        Serial.println("Engine LED shutdown failed");
         success = false;
     }
 

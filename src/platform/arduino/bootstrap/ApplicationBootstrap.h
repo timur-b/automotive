@@ -5,7 +5,7 @@
 #include "app/AmbientLightController.h"
 #include "app/Application.h"
 #include "app/CarController.h"
-#include "drivers/AdafruitNeoPixelLed.h"
+#include "drivers/GpioOutput.h"
 #include "drivers/Button.h"
 #include "drivers/Ky040Encoder.h"
 #include "drivers/Photoresistor.h"
@@ -55,7 +55,7 @@ private:
     drivers::Photoresistor photoresistor_;
     app::AmbientLightController ambientLightController_;
 
-    drivers::AdafruitNeoPixelLed engineLed_;
+    drivers::GpioOutput engineLed_;
     drivers::PwmLed airbagLed_;
 
     indication::StatusIndicatorController statusIndicatorController_;

@@ -10,7 +10,7 @@
 #include "input/ButtonInputManager.h"
 #include "drivers/Ky040Encoder.h"
 #include "app/CarController.h"
-#include "drivers/RmtRgbLed.h"
+#include "drivers/GpioOutput.h"
 #include "indication/StatusIndicatorController.h"
 #include "drivers/PwmMotor.h"
 #include "engine/EngineController.h"
@@ -59,7 +59,7 @@ private:
     drivers::Photoresistor photoresistor_;
     app::AmbientLightController ambientLightController_;
 
-    drivers::RmtRgbLed engineLed_;
+    drivers::GpioOutput engineLed_;
     drivers::PwmLed airbagLed_;
 
     indication::StatusIndicatorController statusIndicatorController_;

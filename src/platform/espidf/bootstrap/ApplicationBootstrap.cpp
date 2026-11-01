@@ -81,7 +81,7 @@ ApplicationBootstrap::ApplicationBootstrap()
           config::DEFAULT_AMBIENT_LIGHT_CONFIG
       ),
 
-      engineLed_(Board::RGB_LED),
+      engineLed_(Board::ENGINE_LED),
 
       airbagLed_(
           ledc_,
@@ -181,7 +181,7 @@ bool ApplicationBootstrap::begin(uint32_t now) {
     }
 
     if (!engineLed_.begin()) {
-        return fail("RGB LED initialization failed");
+        return fail("Engine LED initialization failed");
     }
 
     if (!motor_.begin()) {
@@ -219,7 +219,7 @@ bool ApplicationBootstrap::end() {
     }
 
     if (!engineLed_.end()) {
-        ESP_LOGE("BOOTSTRAP", "RGB LED shutdown failed");
+        ESP_LOGE("BOOTSTRAP", "Engine LED shutdown failed");
         success = false;
     }
 

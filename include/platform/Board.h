@@ -20,7 +20,8 @@ constexpr uint8_t BRAKE_LED = 15;
 constexpr uint8_t LEFT_TURN_LED = 14;
 constexpr uint8_t RIGHT_TURN_LED = 7;
 constexpr uint8_t AIRBAG_LED = 6;
-constexpr uint8_t RGB_LED = 48;
+constexpr uint8_t ENGINE_LED = 11;
+// constexpr uint8_t RGB_LED = 48;
 
 constexpr uint8_t HEADLIGHTS_PWM_CHANNEL = 0;
 constexpr uint8_t BRAKE_PWM_CHANNEL = 1;
