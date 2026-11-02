@@ -1,0 +1,13 @@
+{
+    "folders": [
+        {
+            "name": "automotive",
+            "path": "."
+        },
+        {
+            "name": "esp32-s3",
+            "path": "targets/esp32-s3"
+        }
+    ],
+    "settings": {}
+}
