@@ -1,0 +1,9 @@
+{
+    "name": "embedded-input",
+    "version": "0.1.0",
+    "description": "Platform-independent input processing components for embedded systems",
+    "build": {
+        "includeDir": "include",
+        "srcDir": "src"
+    }
+}
