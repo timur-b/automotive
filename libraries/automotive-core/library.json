@@ -1,0 +1,10 @@
+{
+    "name": "automotive-core",
+    "version": "0.1.0",
+    "description": "Platform-independent application and domain logic for the automotive simulator",
+    "build": {
+        "includeDir": "include",
+        "srcDir": "src"
+    }
+}
+
