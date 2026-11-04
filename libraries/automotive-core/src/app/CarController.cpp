@@ -190,6 +190,9 @@ void CarController::onButtonEvent(CarButton button, input::ButtonEdge edge,
                 state_.crashDetected = true;
                 state_.airbagsDeployed = true;
                 state_.engineState = domain::EngineState::STOPPED_BY_CRASH;
+
+                // Automatically unlock doors in case of a crash.
+                state_.doorsLocked = false;
             }
 
             if (gesture == input::ButtonGesture::LONG) {
@@ -219,7 +222,8 @@ void CarController::onButtonEvent(CarButton button, input::ButtonEdge edge,
             break;
 
         case CarButton::LOCK:
-            if (gesture == input::ButtonGesture::SINGLE) {
+            if (gesture == input::ButtonGesture::SINGLE &&
+                !state_.crashDetected) {
                 state_.doorsLocked = !state_.doorsLocked;
             }
             break;
