@@ -1,36 +1,53 @@
 #include "ApplicationBootstrap.h"
+#include "platform/Board.h"
+
 
 ApplicationBootstrap::ApplicationBootstrap()
     : tim1_(TIM1, 15, 999),
       tim2_(TIM2, 15, 999),
       tim4_(TIM4, 15, 999),
       headlights_(
-          tim4_, TIM_CHANNEL_1,
-          GPIOB, GPIO_PIN_6, GPIO_AF2_TIM4),
+          tim4_,
+          Board::HEADLIGHTS.channel,
+          Board::HEADLIGHTS.port,
+          Board::HEADLIGHTS.pin,
+          Board::HEADLIGHTS.alternateFunction),
       brakeLights_(
-          tim1_, TIM_CHANNEL_3,
-          GPIOA, GPIO_PIN_10, GPIO_AF1_TIM1),
+          tim1_,
+          Board::BRAKE_LIGHTS.channel,
+          Board::BRAKE_LIGHTS.port,
+          Board::BRAKE_LIGHTS.pin,
+          Board::BRAKE_LIGHTS.alternateFunction),
       leftTurn_(
-          tim4_, TIM_CHANNEL_2,
-          GPIOB, GPIO_PIN_7, GPIO_AF2_TIM4),
+          tim4_,
+          Board::LEFT_TURN.channel,
+          Board::LEFT_TURN.port,
+          Board::LEFT_TURN.pin,
+          Board::LEFT_TURN.alternateFunction),
       rightTurn_(
-          tim1_, TIM_CHANNEL_2,
-          GPIOA, GPIO_PIN_9, GPIO_AF1_TIM1),
+          tim1_,
+          Board::RIGHT_TURN.channel,
+          Board::RIGHT_TURN.port,
+          Board::RIGHT_TURN.pin,
+          Board::RIGHT_TURN.alternateFunction),
       motor_(
           tim2_,
-          TIM_CHANNEL_3,
-          GPIOB,
-          GPIO_PIN_10,
-          GPIO_AF1_TIM2,
-          {26, 100}
-      ),
-      engineIndicator_(GPIOB, GPIO_PIN_12),
-      airbagIndicator_(GPIOB, GPIO_PIN_13),
+          Board::MOTOR.channel,
+          Board::MOTOR.port,
+          Board::MOTOR.pin,
+          Board::MOTOR.alternateFunction,
+          {26, 100}),
+      engineIndicator_(
+          Board::ENGINE_INDICATOR.port,
+          Board::ENGINE_INDICATOR.pin),
+      airbagIndicator_(
+          Board::AIRBAG_INDICATOR.port,
+          Board::AIRBAG_INDICATOR.pin),
       ldr_({
           ADC1,
-          ADC_CHANNEL_7,
-          GPIOA,
-          GPIO_PIN_7,
+          Board::LDR.channel,
+          Board::LDR.port,
+          Board::LDR.pin,
           ADC_SAMPLETIME_480CYCLES
       }),
       lightingController_(
@@ -40,12 +57,36 @@ ApplicationBootstrap::ApplicationBootstrap()
           rightTurn_,
           lighting::LightingController::Config{}),
       buttons_{{
-          {GPIOA, GPIO_PIN_1, drivers::Stm32Button::Polarity::ActiveHigh},
-          {GPIOA, GPIO_PIN_2, drivers::Stm32Button::Polarity::ActiveHigh},
-          {GPIOA, GPIO_PIN_3, drivers::Stm32Button::Polarity::ActiveHigh},
-          {GPIOA, GPIO_PIN_4, drivers::Stm32Button::Polarity::ActiveHigh},
-          {GPIOA, GPIO_PIN_5, drivers::Stm32Button::Polarity::ActiveHigh},
-          {GPIOA, GPIO_PIN_6, drivers::Stm32Button::Polarity::ActiveHigh}
+          {
+              Board::ENGINE_BUTTON.port,
+              Board::ENGINE_BUTTON.pin,
+              drivers::Stm32Button::Polarity::ActiveHigh
+          },
+          {
+              Board::LIGHT_BUTTON.port,
+              Board::LIGHT_BUTTON.pin,
+              drivers::Stm32Button::Polarity::ActiveHigh
+          },
+          {
+              Board::TURN_BUTTON.port,
+              Board::TURN_BUTTON.pin,
+              drivers::Stm32Button::Polarity::ActiveHigh
+          },
+          {
+              Board::BRAKE_BUTTON.port,
+              Board::BRAKE_BUTTON.pin,
+              drivers::Stm32Button::Polarity::ActiveHigh
+          },
+          {
+              Board::CRASH_BUTTON.port,
+              Board::CRASH_BUTTON.pin,
+              drivers::Stm32Button::Polarity::ActiveHigh
+          },
+          {
+              Board::LOCK_BUTTON.port,
+              Board::LOCK_BUTTON.pin,
+              drivers::Stm32Button::Polarity::ActiveHigh
+          }
       }},
       buttonInputs_{{
           {buttons_[0]},
@@ -56,8 +97,10 @@ ApplicationBootstrap::ApplicationBootstrap()
           {buttons_[5]}
       }},
       encoder_({
-          GPIOB, GPIO_PIN_1,
-          GPIOB, GPIO_PIN_0,
+          Board::ENCODER_CLK.port,
+          Board::ENCODER_CLK.pin,
+          Board::ENCODER_DT.port,
+          Board::ENCODER_DT.pin,
           4,
           false
       }),
