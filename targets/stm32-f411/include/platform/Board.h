@@ -69,8 +69,7 @@ inline const DigitalPin AIRBAG_INDICATOR = {
     GPIOB, GPIO_PIN_13
 };
 
-// Reserved for future use.
-inline const DigitalPin LOCK_INDICATOR = {
+inline const DigitalPin VALET_INDICATOR = {
     GPIOA, GPIO_PIN_8
 };
 

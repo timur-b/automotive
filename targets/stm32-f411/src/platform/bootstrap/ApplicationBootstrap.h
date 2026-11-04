@@ -42,6 +42,7 @@ private:
 
     drivers::Stm32DigitalOutput engineIndicator_;
     drivers::Stm32DigitalOutput airbagIndicator_;
+    drivers::Stm32DigitalOutput valetIndicator_;
     drivers::Stm32DigitalOutput lockRelay_;
 
     drivers::Stm32AdcInput ldr_;

@@ -9,7 +9,7 @@ namespace drivers {
 class Stm32PwmMotor final {
 public:
     struct Config {
-        uint8_t startupDutyPercent = 26;
+        uint8_t startupDutyPercent = 27;
         uint32_t startupDurationMs = 100;
     };
 

@@ -43,6 +43,9 @@ ApplicationBootstrap::ApplicationBootstrap()
       airbagIndicator_(
           Board::AIRBAG_INDICATOR.port,
           Board::AIRBAG_INDICATOR.pin),
+      valetIndicator_(
+          Board::VALET_INDICATOR.port,
+          Board::VALET_INDICATOR.pin),
       lockRelay_(
           Board::LOCK_RELAY.port,
           Board::LOCK_RELAY.pin),
@@ -132,6 +135,7 @@ bool ApplicationBootstrap::begin(uint32_t now) {
         !motor_.begin() ||
         !engineIndicator_.begin() ||
         !airbagIndicator_.begin() ||
+        !valetIndicator_.begin() ||
         !lockRelay_.begin() ||
         !ldr_.begin()) {
         end();
@@ -196,6 +200,8 @@ void ApplicationBootstrap::update(uint32_t now) {
 
     airbagIndicator_.set(state.airbagsDeployed);
 
+    valetIndicator_.set(state.valetModeActive);
+
     // Energize the relay when the doors are unlocked.
     lockRelay_.set(!state.doorsLocked);
 
@@ -205,7 +211,7 @@ void ApplicationBootstrap::update(uint32_t now) {
         constexpr uint8_t MIN_DUTY = 20;
         constexpr uint8_t MAX_DUTY = 40;
 
-        const uint8_t throttle = state.throttlePercent;
+        const uint8_t throttle = carController_.effectiveThrottlePercent();
 
         motorDuty = MIN_DUTY +
             (static_cast<uint32_t>(throttle - 50) *
@@ -226,6 +232,7 @@ void ApplicationBootstrap::end() {
 
     ldr_.end();
     lockRelay_.end();
+    valetIndicator_.end();
     airbagIndicator_.end();
     engineIndicator_.end();
 

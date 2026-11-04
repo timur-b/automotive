@@ -111,6 +111,17 @@ void CarController::setAmbientDark(bool dark) {
     state_.ambientDark = dark;
 }
 
+uint8_t CarController::effectiveThrottlePercent() const {
+    if (state_.valetModeActive) {
+        return std::min(
+            state_.throttlePercent,
+            config::VALET_MAX_THROTTLE_PERCENT
+        );
+    }
+
+    return state_.throttlePercent;
+}
+
 const domain::VehicleState& CarController::state() const {
     return state_;
 }
@@ -225,6 +236,11 @@ void CarController::onButtonEvent(CarButton button, input::ButtonEdge edge,
             if (gesture == input::ButtonGesture::SINGLE &&
                 !state_.crashDetected) {
                 state_.doorsLocked = !state_.doorsLocked;
+            }
+
+            if (gesture == input::ButtonGesture::LONG &&
+                state_.engineState == domain::EngineState::OFF) {
+                state_.valetModeActive = !state_.valetModeActive;
             }
             break;
     }

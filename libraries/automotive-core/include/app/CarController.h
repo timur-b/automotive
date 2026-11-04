@@ -23,6 +23,8 @@ public:
 
     void setAmbientDark(bool dark);
 
+    uint8_t effectiveThrottlePercent() const;
+
     const domain::VehicleState& state() const;
 
 private:

@@ -28,6 +28,7 @@ struct VehicleState {
     uint8_t throttlePercent = 50;
 
     bool doorsLocked = true;
+    bool valetModeActive = false;
 };
 
 } // namespace domain
