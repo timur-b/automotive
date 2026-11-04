@@ -8,13 +8,14 @@
 
 namespace app {
 
-enum class CarButton : uint8_t { LIGHT, BRAKE, TURN, CRASH, ENGINE };
+enum class CarButton : uint8_t { LIGHT, BRAKE, TURN, CRASH, ENGINE, LOCK };
 
 class CarController {
 public:
     CarController(input::IButtonInput& lightButton, input::IButtonInput& brakeButton,
                   input::IButtonInput& turnButton, input::IButtonInput& crashButton,
-                  input::IButtonInput& engineButton, IEncoderInput& encoder);
+                  input::IButtonInput& engineButton, input::IButtonInput& lockButton,
+                  IEncoderInput& encoder);
 
     void begin();
     void end();
@@ -39,12 +40,14 @@ private:
     input::IButtonInput& turnButton_;
     input::IButtonInput& crashButton_;
     input::IButtonInput& engineButton_;
+    input::IButtonInput& lockButton_;
 
     ButtonContext lightContext_;
     ButtonContext brakeContext_;
     ButtonContext turnContext_;
     ButtonContext crashContext_;
     ButtonContext engineContext_;
+    ButtonContext lockContext_;
 
     domain::VehicleState state_;
 

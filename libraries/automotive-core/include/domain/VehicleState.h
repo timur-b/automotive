@@ -26,6 +26,8 @@ struct VehicleState {
     bool airbagsDeployed = false;
 
     uint8_t throttlePercent = 50;
+
+    bool doorsLocked = true;
 };
 
 } // namespace domain

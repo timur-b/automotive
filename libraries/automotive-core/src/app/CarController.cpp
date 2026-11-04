@@ -8,11 +8,13 @@ namespace app {
 
 CarController::CarController(input::IButtonInput& lightButton, input::IButtonInput& brakeButton,
                              input::IButtonInput& turnButton, input::IButtonInput& crashButton,
-                             input::IButtonInput& engineButton, IEncoderInput& encoder)
+                             input::IButtonInput& engineButton, input::IButtonInput& lockButton,
+                             IEncoderInput& encoder)
     : lightButton_(lightButton), brakeButton_(brakeButton), turnButton_(turnButton),
-      crashButton_(crashButton), engineButton_(engineButton), lightContext_{this, CarButton::LIGHT},
-      brakeContext_{this, CarButton::BRAKE}, turnContext_{this, CarButton::TURN},
-      crashContext_{this, CarButton::CRASH}, engineContext_{this, CarButton::ENGINE},
+      crashButton_(crashButton), engineButton_(engineButton), lockButton_(lockButton),
+      lightContext_{this, CarButton::LIGHT}, brakeContext_{this, CarButton::BRAKE},
+      turnContext_{this, CarButton::TURN}, crashContext_{this, CarButton::CRASH},
+      engineContext_{this, CarButton::ENGINE}, lockContext_{this, CarButton::LOCK},
       encoder_(encoder) {}
 
 void CarController::begin() {
@@ -27,6 +29,8 @@ void CarController::begin() {
 
     engineButton_.setCallback(&CarController::buttonCallback, &engineContext_);
 
+    lockButton_.setCallback(&CarController::buttonCallback, &lockContext_);
+
     // Synchronize the initial brake state.
     state_.brakePressed = brakeButton_.isPressed();
 }
@@ -38,6 +42,7 @@ void CarController::end() {
     turnButton_.setCallback(nullptr);
     crashButton_.setCallback(nullptr);
     engineButton_.setCallback(nullptr);
+    lockButton_.setCallback(nullptr);
 
     // Reset vehicle state.
     state_ = domain::VehicleState{};
@@ -210,6 +215,12 @@ void CarController::onButtonEvent(CarButton button, input::ButtonEdge edge,
                         // Engine restart is blocked until crash reset.
                         break;
                 }
+            }
+            break;
+
+        case CarButton::LOCK:
+            if (gesture == input::ButtonGesture::SINGLE) {
+                state_.doorsLocked = !state_.doorsLocked;
             }
             break;
     }

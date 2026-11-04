@@ -43,6 +43,9 @@ ApplicationBootstrap::ApplicationBootstrap()
       airbagIndicator_(
           Board::AIRBAG_INDICATOR.port,
           Board::AIRBAG_INDICATOR.pin),
+      lockRelay_(
+          Board::LOCK_RELAY.port,
+          Board::LOCK_RELAY.pin),
       ldr_({
           ADC1,
           Board::LDR.channel,
@@ -110,6 +113,7 @@ ApplicationBootstrap::ApplicationBootstrap()
           buttonInputs_[static_cast<std::size_t>(ButtonId::Turn)],
           buttonInputs_[static_cast<std::size_t>(ButtonId::Crash)],
           buttonInputs_[static_cast<std::size_t>(ButtonId::Engine)],
+          buttonInputs_[static_cast<std::size_t>(ButtonId::Lock)],
           encoder_) {
 }
 
@@ -128,6 +132,7 @@ bool ApplicationBootstrap::begin(uint32_t now) {
         !motor_.begin() ||
         !engineIndicator_.begin() ||
         !airbagIndicator_.begin() ||
+        !lockRelay_.begin() ||
         !ldr_.begin()) {
         end();
         return false;
@@ -191,6 +196,9 @@ void ApplicationBootstrap::update(uint32_t now) {
 
     airbagIndicator_.set(state.airbagsDeployed);
 
+    // Energize the relay when the doors are unlocked.
+    lockRelay_.set(!state.doorsLocked);
+
     uint8_t motorDuty = 0;
 
     if (state.engineState == domain::EngineState::RUNNING) {
@@ -217,6 +225,7 @@ void ApplicationBootstrap::end() {
     motor_.end();
 
     ldr_.end();
+    lockRelay_.end();
     airbagIndicator_.end();
     engineIndicator_.end();
 

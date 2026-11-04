@@ -100,6 +100,20 @@ inline const DigitalPin LOCK_BUTTON = {
     GPIOA, GPIO_PIN_6
 };
 
+// Central locking relay.
+//
+// PB14 controls the relay module through an external
+// 2N2222A transistor.
+//
+// HIGH = relay energized (unlocked)
+// LOW  = relay de-energized (locked)
+//
+// The relay must remain off during initialization
+// and after application shutdown.
+inline const DigitalPin LOCK_RELAY = {
+    GPIOB, GPIO_PIN_14
+};
+
 // Quadrature encoder (KY-040)
 
 inline const DigitalPin ENCODER_CLK = {
