@@ -2,6 +2,50 @@
 
 namespace drivers {
 
+namespace {
+
+bool isValidPinConfiguration(
+    TIM_TypeDef* instance,
+    uint32_t channel,
+    GPIO_TypeDef* port,
+    uint16_t pin,
+    uint8_t alternateFunction) {
+
+    if (instance == TIM1 &&
+        port == GPIOA &&
+        alternateFunction == GPIO_AF1_TIM1) {
+
+        return (channel == TIM_CHANNEL_1 && pin == GPIO_PIN_8) ||
+               (channel == TIM_CHANNEL_2 && pin == GPIO_PIN_9) ||
+               (channel == TIM_CHANNEL_3 && pin == GPIO_PIN_10) ||
+               (channel == TIM_CHANNEL_4 && pin == GPIO_PIN_11);
+    }
+
+    if (instance == TIM4 &&
+        port == GPIOB &&
+        alternateFunction == GPIO_AF2_TIM4) {
+
+        return (channel == TIM_CHANNEL_1 && pin == GPIO_PIN_6) ||
+               (channel == TIM_CHANNEL_2 && pin == GPIO_PIN_7);
+    }
+
+    return false;
+}
+
+bool enableGpioClock(GPIO_TypeDef* port) {
+    if (port == GPIOA) {
+        __HAL_RCC_GPIOA_CLK_ENABLE();
+    } else if (port == GPIOB) {
+        __HAL_RCC_GPIOB_CLK_ENABLE();
+    } else {
+        return false;
+    }
+
+    return true;
+}
+
+} // namespace
+
 Stm32PwmLed::Stm32PwmLed(
     Stm32PwmTimer& timer,
     uint32_t channel,
@@ -25,33 +69,18 @@ bool Stm32PwmLed::begin() {
         return false;
     }
 
-    const bool channel1 =
-        channel_ == TIM_CHANNEL_1 &&
-        port_ == GPIOA &&
-        pin_ == GPIO_PIN_8;
-
-    const bool channel2 =
-        channel_ == TIM_CHANNEL_2 &&
-        port_ == GPIOA &&
-        pin_ == GPIO_PIN_9;
-
-    const bool channel3 =
-        channel_ == TIM_CHANNEL_3 &&
-        port_ == GPIOA &&
-        pin_ == GPIO_PIN_10;
-
-    const bool channel4 =
-        channel_ == TIM_CHANNEL_4 &&
-        port_ == GPIOA &&
-        pin_ == GPIO_PIN_11;
-
-    if (handle->Instance != TIM1 ||
-        alternateFunction_ != GPIO_AF1_TIM1 ||
-        !(channel1 || channel2 || channel3 || channel4)) {
+    if (!isValidPinConfiguration(
+            handle->Instance,
+            channel_,
+            port_,
+            pin_,
+            alternateFunction_)) {
         return false;
     }
 
-    __HAL_RCC_GPIOA_CLK_ENABLE();
+    if (!enableGpioClock(port_)) {
+        return false;
+    }
 
     GPIO_InitTypeDef gpio{};
     gpio.Pin = pin_;

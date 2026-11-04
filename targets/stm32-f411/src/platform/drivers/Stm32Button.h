@@ -7,8 +7,18 @@ namespace drivers {
 
 class Stm32Button final : public input::IButton {
 public:
-    Stm32Button(GPIO_TypeDef* port, uint16_t pin)
-        : port_(port), pin_(pin) {}
+    enum class Polarity {
+        ActiveLow,
+        ActiveHigh
+    };
+
+    Stm32Button(
+        GPIO_TypeDef* port,
+        uint16_t pin,
+        Polarity polarity)
+        : port_(port),
+          pin_(pin),
+          polarity_(polarity) {}
 
     bool begin() override;
     bool end() override;
@@ -17,6 +27,8 @@ public:
 private:
     GPIO_TypeDef* port_;
     uint16_t pin_;
+    Polarity polarity_;
+
     bool initialized_ = false;
 };
 

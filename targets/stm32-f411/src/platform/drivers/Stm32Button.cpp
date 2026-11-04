@@ -7,13 +7,18 @@ bool Stm32Button::begin() {
         return true;
     }
 
-    // PA0 belongs to GPIOA.
+    if (port_ != GPIOA) {
+        return false;
+    }
+
     __HAL_RCC_GPIOA_CLK_ENABLE();
 
     GPIO_InitTypeDef gpio{};
     gpio.Pin = pin_;
     gpio.Mode = GPIO_MODE_INPUT;
-    gpio.Pull = GPIO_PULLUP;
+    gpio.Pull = polarity_ == Polarity::ActiveHigh
+                    ? GPIO_PULLDOWN
+                    : GPIO_PULLUP;
     gpio.Speed = GPIO_SPEED_FREQ_LOW;
 
     HAL_GPIO_Init(port_, &gpio);
@@ -37,7 +42,12 @@ bool Stm32Button::isPressed() const {
         return false;
     }
 
-    return HAL_GPIO_ReadPin(port_, pin_) == GPIO_PIN_RESET;
+    const GPIO_PinState state =
+        HAL_GPIO_ReadPin(port_, pin_);
+
+    return polarity_ == Polarity::ActiveHigh
+               ? state == GPIO_PIN_SET
+               : state == GPIO_PIN_RESET;
 }
 
 } // namespace drivers

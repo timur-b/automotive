@@ -2,6 +2,34 @@
 
 namespace drivers {
 
+namespace {
+
+bool enableTimerClock(TIM_TypeDef* instance) {
+    if (instance == TIM1) {
+        __HAL_RCC_TIM1_CLK_ENABLE();
+    } else if (instance == TIM2) {
+        __HAL_RCC_TIM2_CLK_ENABLE();
+    } else if (instance == TIM4) {
+        __HAL_RCC_TIM4_CLK_ENABLE();
+    } else {
+        return false;
+    }
+
+    return true;
+}
+
+void disableTimerClock(TIM_TypeDef* instance) {
+    if (instance == TIM1) {
+        __HAL_RCC_TIM1_CLK_DISABLE();
+    } else if (instance == TIM2) {
+        __HAL_RCC_TIM2_CLK_DISABLE();
+    } else if (instance == TIM4) {
+        __HAL_RCC_TIM4_CLK_DISABLE();
+    }
+}
+
+} // namespace
+
 Stm32PwmTimer::Stm32PwmTimer(
     TIM_TypeDef* instance,
     uint32_t prescaler,
@@ -16,12 +44,9 @@ bool Stm32PwmTimer::begin() {
         return true;
     }
 
-    // Initial implementation supports TIM1 only.
-    if (handle_.Instance != TIM1) {
+    if (!enableTimerClock(handle_.Instance)) {
         return false;
     }
-
-    __HAL_RCC_TIM1_CLK_ENABLE();
 
     handle_.Init.Prescaler = prescaler_;
     handle_.Init.CounterMode = TIM_COUNTERMODE_UP;
@@ -33,7 +58,7 @@ bool Stm32PwmTimer::begin() {
 
     if (HAL_TIM_PWM_Init(&handle_) != HAL_OK) {
         HAL_TIM_PWM_DeInit(&handle_);
-        __HAL_RCC_TIM1_CLK_DISABLE();
+        disableTimerClock(handle_.Instance);
         return false;
     }
 
@@ -50,7 +75,7 @@ bool Stm32PwmTimer::end() {
         return false;
     }
 
-    __HAL_RCC_TIM1_CLK_DISABLE();
+    disableTimerClock(handle_.Instance);
 
     initialized_ = false;
     return true;

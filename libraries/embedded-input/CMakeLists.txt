@@ -1,6 +1,7 @@
 add_library(embedded-input STATIC
     src/input/Debouncer.cpp
     src/input/ButtonGestureRecognizer.cpp
+    src/input/ButtonInput.cpp
     src/input/ButtonInputManager.cpp
     src/input/QuadratureDecoder.cpp
 )

@@ -1,28 +1,73 @@
 #include "ApplicationBootstrap.h"
 
 ApplicationBootstrap::ApplicationBootstrap()
-    : pwmTimer_(TIM1, 15, 999),
+    : tim1_(TIM1, 15, 999),
+      tim2_(TIM2, 15, 999),
+      tim4_(TIM4, 15, 999),
       headlights_(
-          pwmTimer_, TIM_CHANNEL_1,
-          GPIOA, GPIO_PIN_8, GPIO_AF1_TIM1),
+          tim4_, TIM_CHANNEL_1,
+          GPIOB, GPIO_PIN_6, GPIO_AF2_TIM4),
       brakeLights_(
-          pwmTimer_, TIM_CHANNEL_2,
-          GPIOA, GPIO_PIN_9, GPIO_AF1_TIM1),
-      leftTurn_(
-          pwmTimer_, TIM_CHANNEL_3,
+          tim1_, TIM_CHANNEL_3,
           GPIOA, GPIO_PIN_10, GPIO_AF1_TIM1),
+      leftTurn_(
+          tim4_, TIM_CHANNEL_2,
+          GPIOB, GPIO_PIN_7, GPIO_AF2_TIM4),
       rightTurn_(
-          pwmTimer_, TIM_CHANNEL_4,
-          GPIOA, GPIO_PIN_11, GPIO_AF1_TIM1),
+          tim1_, TIM_CHANNEL_2,
+          GPIOA, GPIO_PIN_9, GPIO_AF1_TIM1),
+      motor_(
+          tim2_,
+          TIM_CHANNEL_3,
+          GPIOB,
+          GPIO_PIN_10,
+          GPIO_AF1_TIM2,
+          {26, 100}
+      ),
+      engineIndicator_(GPIOB, GPIO_PIN_12),
+      airbagIndicator_(GPIOB, GPIO_PIN_13),
+      ldr_({
+          ADC1,
+          ADC_CHANNEL_7,
+          GPIOA,
+          GPIO_PIN_7,
+          ADC_SAMPLETIME_480CYCLES
+      }),
       lightingController_(
           headlights_,
           brakeLights_,
           leftTurn_,
           rightTurn_,
           lighting::LightingController::Config{}),
-      button_(GPIOA, GPIO_PIN_0),
-      buttonInput_(button_),
-      demoController_(buttonInput_, vehicleState_) {
+      buttons_{{
+          {GPIOA, GPIO_PIN_1, drivers::Stm32Button::Polarity::ActiveHigh},
+          {GPIOA, GPIO_PIN_2, drivers::Stm32Button::Polarity::ActiveHigh},
+          {GPIOA, GPIO_PIN_3, drivers::Stm32Button::Polarity::ActiveHigh},
+          {GPIOA, GPIO_PIN_4, drivers::Stm32Button::Polarity::ActiveHigh},
+          {GPIOA, GPIO_PIN_5, drivers::Stm32Button::Polarity::ActiveHigh},
+          {GPIOA, GPIO_PIN_6, drivers::Stm32Button::Polarity::ActiveHigh}
+      }},
+      buttonInputs_{{
+          {buttons_[0]},
+          {buttons_[1]},
+          {buttons_[2]},
+          {buttons_[3]},
+          {buttons_[4]},
+          {buttons_[5]}
+      }},
+      encoder_({
+          GPIOB, GPIO_PIN_1,
+          GPIOB, GPIO_PIN_0,
+          4,
+          false
+      }),
+      carController_(
+          buttonInputs_[static_cast<std::size_t>(ButtonId::Light)],
+          buttonInputs_[static_cast<std::size_t>(ButtonId::Brake)],
+          buttonInputs_[static_cast<std::size_t>(ButtonId::Turn)],
+          buttonInputs_[static_cast<std::size_t>(ButtonId::Crash)],
+          buttonInputs_[static_cast<std::size_t>(ButtonId::Engine)],
+          encoder_) {
 }
 
 bool ApplicationBootstrap::begin(uint32_t now) {
@@ -30,26 +75,53 @@ bool ApplicationBootstrap::begin(uint32_t now) {
         return true;
     }
 
-    if (!pwmTimer_.begin() ||
+    if (!tim1_.begin() ||
+        !tim2_.begin() ||
+        !tim4_.begin() ||
         !headlights_.begin() ||
         !brakeLights_.begin() ||
         !leftTurn_.begin() ||
-        !rightTurn_.begin()) {
+        !rightTurn_.begin() ||
+        !motor_.begin() ||
+        !engineIndicator_.begin() ||
+        !airbagIndicator_.begin() ||
+        !ldr_.begin()) {
         end();
         return false;
     }
 
     lightingController_.reset();
 
-    inputManager_.add(buttonInput_);
+    for (auto& buttonInput : buttonInputs_) {
+        if (!inputManager_.add(buttonInput)) {
+            end();
+            return false;
+        }
+    }
 
     if (!inputManager_.begin(now)) {
         end();
         return false;
     }
 
-    demoController_.begin();
-    
+    if (!encoder_.begin()) {
+        end();
+        return false;
+    }
+
+    carController_.begin();
+
+    lastLdrSampleAt_ = now;
+    ambientDark_ = false;
+
+    uint16_t adcValue = 0;
+
+    if (ldr_.read(adcValue)) {
+        ambientDark_ = adcValue < LDR_DARK_THRESHOLD;
+    }
+
+    carController_.setAmbientDark(ambientDark_);
+
     initialized_ = true;
     return true;
 }
@@ -60,16 +132,87 @@ void ApplicationBootstrap::update(uint32_t now) {
     }
 
     inputManager_.update(now);
-    lightingController_.update(vehicleState_, now);
+    encoder_.update();
+
+    updateAmbientLight(now);
+
+    carController_.update(now);
+
+    const auto& state = carController_.state();
+
+    lightingController_.update(state, now);
+
+    engineIndicator_.set(
+        state.engineState == domain::EngineState::RUNNING
+    );
+
+    airbagIndicator_.set(state.airbagsDeployed);
+
+    uint8_t motorDuty = 0;
+
+    if (state.engineState == domain::EngineState::RUNNING) {
+        constexpr uint8_t MIN_DUTY = 20;
+        constexpr uint8_t MAX_DUTY = 40;
+
+        const uint8_t throttle = state.throttlePercent;
+
+        motorDuty = MIN_DUTY +
+            (static_cast<uint32_t>(throttle - 50) *
+            (MAX_DUTY - MIN_DUTY)) / 50;
+    }
+
+    motor_.setDutyPercent(motorDuty);
+    motor_.update(now);
 }
 
 void ApplicationBootstrap::end() {
-    demoController_.end();
+    carController_.end();
+
+    encoder_.end();
+    inputManager_.end();
+
+    motor_.end();
+
+    ldr_.end();
+    airbagIndicator_.end();
+    engineIndicator_.end();
+
     rightTurn_.end();
     leftTurn_.end();
     brakeLights_.end();
     headlights_.end();
-    pwmTimer_.end();
+
+    tim4_.end();
+    tim2_.end();
+    tim1_.end();
 
     initialized_ = false;
+}
+
+void ApplicationBootstrap::updateAmbientLight(uint32_t now) {
+    if (static_cast<uint32_t>(now - lastLdrSampleAt_) <
+        LDR_SAMPLE_INTERVAL_MS) {
+        return;
+    }
+
+    lastLdrSampleAt_ = now;
+
+    uint16_t adcValue = 0;
+
+    if (!ldr_.read(adcValue)) {
+        return;
+    }
+
+    bool dark = ambientDark_;
+
+    if (adcValue < LDR_DARK_THRESHOLD) {
+        dark = true;
+    } else if (adcValue > LDR_LIGHT_THRESHOLD) {
+        dark = false;
+    }
+
+    if (dark != ambientDark_) {
+        ambientDark_ = dark;
+        carController_.setAmbientDark(ambientDark_);
+    }
 }
