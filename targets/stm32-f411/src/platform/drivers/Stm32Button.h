@@ -7,6 +7,11 @@ namespace drivers {
 
 class Stm32Button final : public input::IButton {
 public:
+    enum class InputMode {
+        Polling,
+        Interrupt
+    };
+
     enum class Polarity {
         ActiveLow,
         ActiveHigh
@@ -15,10 +20,12 @@ public:
     Stm32Button(
         GPIO_TypeDef* port,
         uint16_t pin,
-        Polarity polarity)
+        Polarity polarity,
+        InputMode mode = InputMode::Polling)
         : port_(port),
           pin_(pin),
-          polarity_(polarity) {}
+          polarity_(polarity),
+          mode_(mode) {}
 
     bool begin() override;
     bool end() override;
@@ -28,6 +35,7 @@ private:
     GPIO_TypeDef* port_;
     uint16_t pin_;
     Polarity polarity_;
+    InputMode mode_;
 
     bool initialized_ = false;
 };

@@ -66,41 +66,47 @@ ApplicationBootstrap::ApplicationBootstrap()
           {
               Board::ENGINE_BUTTON.port,
               Board::ENGINE_BUTTON.pin,
-              drivers::Stm32Button::Polarity::ActiveHigh
+              drivers::Stm32Button::Polarity::ActiveHigh,
+              drivers::Stm32Button::InputMode::Interrupt
           },
           {
               Board::LIGHT_BUTTON.port,
               Board::LIGHT_BUTTON.pin,
-              drivers::Stm32Button::Polarity::ActiveHigh
+              drivers::Stm32Button::Polarity::ActiveHigh,
+              drivers::Stm32Button::InputMode::Interrupt
           },
           {
               Board::TURN_BUTTON.port,
               Board::TURN_BUTTON.pin,
-              drivers::Stm32Button::Polarity::ActiveHigh
+              drivers::Stm32Button::Polarity::ActiveHigh,
+              drivers::Stm32Button::InputMode::Interrupt
           },
           {
               Board::BRAKE_BUTTON.port,
               Board::BRAKE_BUTTON.pin,
-              drivers::Stm32Button::Polarity::ActiveHigh
+              drivers::Stm32Button::Polarity::ActiveHigh,
+              drivers::Stm32Button::InputMode::Interrupt
           },
           {
               Board::CRASH_BUTTON.port,
               Board::CRASH_BUTTON.pin,
-              drivers::Stm32Button::Polarity::ActiveHigh
+              drivers::Stm32Button::Polarity::ActiveHigh,
+              drivers::Stm32Button::InputMode::Interrupt
           },
           {
               Board::LOCK_BUTTON.port,
               Board::LOCK_BUTTON.pin,
-              drivers::Stm32Button::Polarity::ActiveHigh
+              drivers::Stm32Button::Polarity::ActiveHigh,
+              drivers::Stm32Button::InputMode::Interrupt
           }
       }},
       buttonInputs_{{
-          {buttons_[0]},
-          {buttons_[1]},
-          {buttons_[2]},
-          {buttons_[3]},
-          {buttons_[4]},
-          {buttons_[5]}
+          {buttons_[0], 30, {}, input::ButtonInput::InputMode::ExternalEvents},
+          {buttons_[1], 30, {}, input::ButtonInput::InputMode::ExternalEvents},
+          {buttons_[2], 30, {}, input::ButtonInput::InputMode::ExternalEvents},
+          {buttons_[3], 30, {}, input::ButtonInput::InputMode::ExternalEvents},
+          {buttons_[4], 30, {}, input::ButtonInput::InputMode::ExternalEvents},
+          {buttons_[5], 30, {}, input::ButtonInput::InputMode::ExternalEvents}
       }},
       encoder_({
           Board::ENCODER_CLK.port,
@@ -163,6 +169,12 @@ bool ApplicationBootstrap::begin(uint32_t now) {
 
     carController_.begin();
 
+    if (!buttonInterruptController_.begin(HAL_GetTick())) {
+        end();
+        return false;
+    }
+
+    lastObservedDroppedEvents_ = droppedButtonEvents();
     lastLdrSampleAt_ = now;
     ambientDark_ = false;
 
@@ -181,6 +193,34 @@ bool ApplicationBootstrap::begin(uint32_t now) {
 void ApplicationBootstrap::update(uint32_t now) {
     if (!initialized_) {
         return;
+    }
+
+    drivers::Stm32ButtonEvent event;
+
+    using PopResult =
+        drivers::Stm32ButtonInterruptController::PopResult;
+
+    while (true) {
+        const PopResult result =
+            buttonInterruptController_.popEventChecked(
+                event,
+                lastObservedDroppedEvents_
+            );
+
+        if (result == PopResult::Overflow) {
+            recoverButtonInputs(now);
+            break;
+        }
+
+        if (result == PopResult::Empty) {
+            break;
+        }
+
+        onButtonStateChanged(
+            event.pin,
+            event.pressed,
+            event.timestampMs
+        );
     }
 
     inputManager_.update(now);
@@ -223,6 +263,8 @@ void ApplicationBootstrap::update(uint32_t now) {
 }
 
 void ApplicationBootstrap::end() {
+    buttonInterruptController_.end();
+
     carController_.end();
 
     encoder_.end();
@@ -274,4 +316,64 @@ void ApplicationBootstrap::updateAmbientLight(uint32_t now) {
         ambientDark_ = dark;
         carController_.setAmbientDark(ambientDark_);
     }
+}
+
+void ApplicationBootstrap::recoverButtonInputs(uint32_t now) {
+    drivers::Stm32ButtonInterruptController::ButtonStateSnapshot snapshot;
+
+    if (!buttonInterruptController_.recoverAfterOverflow(snapshot)) {
+        return;
+    }
+
+    for (std::size_t i = 0; i < BUTTON_COUNT; ++i) {
+        buttonInputs_[i].resyncStableState(snapshot.pressed[i], now);
+    }
+
+    carController_.resyncBrakeState(
+        snapshot.pressed[static_cast<std::size_t>(ButtonId::Brake)]
+    );
+
+    lastObservedDroppedEvents_ = snapshot.droppedEvents;
+}
+
+void ApplicationBootstrap::onButtonStateChanged(
+    uint16_t pin,
+    bool pressed,
+    uint32_t timestampMs
+) {
+    if (!initialized_) {
+        return;
+    }
+
+    ButtonId id;
+
+    switch (pin) {
+        case GPIO_PIN_1: id = ButtonId::Engine; break;
+        case GPIO_PIN_2: id = ButtonId::Light; break;
+        case GPIO_PIN_3: id = ButtonId::Turn; break;
+        case GPIO_PIN_4: id = ButtonId::Brake; break;
+        case GPIO_PIN_5: id = ButtonId::Crash; break;
+        case GPIO_PIN_6: id = ButtonId::Lock; break;
+        default: return;
+    }
+
+    buttonInputs_[static_cast<std::size_t>(id)]
+        .onStableStateChanged(pressed, timestampMs);
+}
+
+void ApplicationBootstrap::onButtonExtiInterrupt(uint16_t pin) {
+    buttonInterruptController_.onExtiInterrupt(pin);
+}
+
+void ApplicationBootstrap::onButtonTimerInterrupt(uint32_t now) {
+    buttonInterruptController_.onTimerInterrupt(now);
+}
+
+void ApplicationBootstrap::handleButtonTimerIrq() {
+    buttonInterruptController_.handleTimerIrq();
+}
+
+__attribute__((noinline))
+uint32_t ApplicationBootstrap::droppedButtonEvents() const {
+    return buttonInterruptController_.droppedEvents();
 }

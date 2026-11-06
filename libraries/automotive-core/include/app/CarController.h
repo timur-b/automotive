@@ -23,6 +23,8 @@ public:
 
     void setAmbientDark(bool dark);
 
+    void resyncBrakeState(bool pressed);
+
     uint8_t effectiveThrottlePercent() const;
 
     const domain::VehicleState& state() const;

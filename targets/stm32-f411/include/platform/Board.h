@@ -116,7 +116,7 @@ inline const DigitalPin LOCK_RELAY = {
 // Quadrature encoder (KY-040)
 
 inline const DigitalPin ENCODER_CLK = {
-    GPIOB, GPIO_PIN_1
+    GPIOB, GPIO_PIN_15
 };
 
 inline const DigitalPin ENCODER_DT = {

@@ -111,6 +111,16 @@ void CarController::setAmbientDark(bool dark) {
     state_.ambientDark = dark;
 }
 
+void CarController::resyncBrakeState(bool pressed) {
+    state_.brakePressed = pressed;
+
+    // Restart emergency braking timing after recovery.
+    brakeTimingActive_ = false;
+    brakePressedAt_ = 0;
+    emergencyBrakingStartedAt_ = 0;
+    state_.emergencyBrakePhase = domain::EmergencyBrakePhase::OFF;
+}
+
 uint8_t CarController::effectiveThrottlePercent() const {
     if (state_.valetModeActive) {
         return std::min(

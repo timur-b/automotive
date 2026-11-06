@@ -17,6 +17,7 @@
 #include "platform/drivers/Stm32DigitalOutput.h"
 #include "platform/drivers/Stm32AdcInput.h"
 #include "platform/drivers/Stm32PwmMotor.h"
+#include "platform/drivers/Stm32ButtonInterruptController.h"
 
 class ApplicationBootstrap {
 public:
@@ -26,8 +27,21 @@ public:
     void update(uint32_t now);
     void end();
 
+    void onButtonStateChanged(
+        uint16_t pin,
+        bool pressed,
+        uint32_t timestampMs
+    );
+
+    void onButtonExtiInterrupt(uint16_t pin);
+    void onButtonTimerInterrupt(uint32_t now);
+    void handleButtonTimerIrq();
+
+    uint32_t droppedButtonEvents() const;
+
 private:
     void updateAmbientLight(uint32_t now);
+    void recoverButtonInputs(uint32_t now);
 
     drivers::Stm32PwmTimer tim1_;
     drivers::Stm32PwmTimer tim2_;
@@ -69,6 +83,7 @@ private:
     app::CarController carController_;
 
     input::ButtonInputManager inputManager_;
+    drivers::Stm32ButtonInterruptController buttonInterruptController_;
 
     static constexpr uint16_t LDR_DARK_THRESHOLD = 1800;
     static constexpr uint16_t LDR_LIGHT_THRESHOLD = 2200;
@@ -76,6 +91,7 @@ private:
 
     uint32_t lastLdrSampleAt_ = 0;
     bool ambientDark_ = false;
+    uint32_t lastObservedDroppedEvents_ = 0;
 
     bool initialized_ = false;
 };
