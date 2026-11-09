@@ -15,7 +15,10 @@ bool Stm32Button::begin() {
 
     GPIO_InitTypeDef gpio{};
     gpio.Pin = pin_;
-    gpio.Mode = GPIO_MODE_INPUT;
+    // gpio.Mode = GPIO_MODE_INPUT;
+    gpio.Mode = mode_ == InputMode::Interrupt
+                ? GPIO_MODE_IT_RISING_FALLING
+                : GPIO_MODE_INPUT;
     gpio.Pull = polarity_ == Polarity::ActiveHigh
                     ? GPIO_PULLDOWN
                     : GPIO_PULLUP;

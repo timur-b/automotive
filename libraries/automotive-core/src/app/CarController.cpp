@@ -8,11 +8,13 @@ namespace app {
 
 CarController::CarController(input::IButtonInput& lightButton, input::IButtonInput& brakeButton,
                              input::IButtonInput& turnButton, input::IButtonInput& crashButton,
-                             input::IButtonInput& engineButton, IEncoderInput& encoder)
+                             input::IButtonInput& engineButton, input::IButtonInput& lockButton,
+                             IEncoderInput& encoder)
     : lightButton_(lightButton), brakeButton_(brakeButton), turnButton_(turnButton),
-      crashButton_(crashButton), engineButton_(engineButton), lightContext_{this, CarButton::LIGHT},
-      brakeContext_{this, CarButton::BRAKE}, turnContext_{this, CarButton::TURN},
-      crashContext_{this, CarButton::CRASH}, engineContext_{this, CarButton::ENGINE},
+      crashButton_(crashButton), engineButton_(engineButton), lockButton_(lockButton),
+      lightContext_{this, CarButton::LIGHT}, brakeContext_{this, CarButton::BRAKE},
+      turnContext_{this, CarButton::TURN}, crashContext_{this, CarButton::CRASH},
+      engineContext_{this, CarButton::ENGINE}, lockContext_{this, CarButton::LOCK},
       encoder_(encoder) {}
 
 void CarController::begin() {
@@ -27,6 +29,8 @@ void CarController::begin() {
 
     engineButton_.setCallback(&CarController::buttonCallback, &engineContext_);
 
+    lockButton_.setCallback(&CarController::buttonCallback, &lockContext_);
+
     // Synchronize the initial brake state.
     state_.brakePressed = brakeButton_.isPressed();
 }
@@ -38,6 +42,7 @@ void CarController::end() {
     turnButton_.setCallback(nullptr);
     crashButton_.setCallback(nullptr);
     engineButton_.setCallback(nullptr);
+    lockButton_.setCallback(nullptr);
 
     // Reset vehicle state.
     state_ = domain::VehicleState{};
@@ -104,6 +109,27 @@ void CarController::handleEncoderDelta(int32_t delta) {
 
 void CarController::setAmbientDark(bool dark) {
     state_.ambientDark = dark;
+}
+
+void CarController::resyncBrakeState(bool pressed) {
+    state_.brakePressed = pressed;
+
+    // Restart emergency braking timing after recovery.
+    brakeTimingActive_ = false;
+    brakePressedAt_ = 0;
+    emergencyBrakingStartedAt_ = 0;
+    state_.emergencyBrakePhase = domain::EmergencyBrakePhase::OFF;
+}
+
+uint8_t CarController::effectiveThrottlePercent() const {
+    if (state_.valetModeActive) {
+        return std::min(
+            state_.throttlePercent,
+            config::VALET_MAX_THROTTLE_PERCENT
+        );
+    }
+
+    return state_.throttlePercent;
 }
 
 const domain::VehicleState& CarController::state() const {
@@ -185,6 +211,9 @@ void CarController::onButtonEvent(CarButton button, input::ButtonEdge edge,
                 state_.crashDetected = true;
                 state_.airbagsDeployed = true;
                 state_.engineState = domain::EngineState::STOPPED_BY_CRASH;
+
+                // Automatically unlock doors in case of a crash.
+                state_.doorsLocked = false;
             }
 
             if (gesture == input::ButtonGesture::LONG) {
@@ -210,6 +239,18 @@ void CarController::onButtonEvent(CarButton button, input::ButtonEdge edge,
                         // Engine restart is blocked until crash reset.
                         break;
                 }
+            }
+            break;
+
+        case CarButton::LOCK:
+            if (gesture == input::ButtonGesture::SINGLE &&
+                !state_.crashDetected) {
+                state_.doorsLocked = !state_.doorsLocked;
+            }
+
+            if (gesture == input::ButtonGesture::LONG &&
+                state_.engineState == domain::EngineState::OFF) {
+                state_.valetModeActive = !state_.valetModeActive;
             }
             break;
     }

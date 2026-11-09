@@ -5,10 +5,12 @@ namespace input {
 ButtonInput::ButtonInput(
     IButton& button,
     uint32_t debounceMs,
-    GestureConfig gestureConfig)
+    GestureConfig gestureConfig,
+    InputMode mode)
     : button_(button),
       debouncer_(debounceMs),
-      recognizer_(gestureConfig) {}
+      recognizer_(gestureConfig),
+      mode_(mode) {}
 
 bool ButtonInput::begin(uint32_t now) {
     if (initialized_) {
@@ -19,7 +21,9 @@ bool ButtonInput::begin(uint32_t now) {
         return false;
     }
 
-    debouncer_.reset(button_.isPressed(), now);
+    stablePressed_ = button_.isPressed();
+
+    debouncer_.reset(stablePressed_, now);
     recognizer_.reset();
 
     initialized_ = true;
@@ -29,6 +33,7 @@ bool ButtonInput::begin(uint32_t now) {
 bool ButtonInput::end() {
     initialized_ = false;
 
+    stablePressed_ = false;
     recognizer_.reset();
     debouncer_.reset(false, 0);
 
@@ -47,20 +52,18 @@ void ButtonInput::update(uint32_t now) {
         return;
     }
 
-    const bool raw = button_.isPressed();
+    if (mode_ == InputMode::Polling) {
+        const bool raw = button_.isPressed();
 
-    if (debouncer_.update(raw, now)) {
-        const ButtonEdge edge = debouncer_.state()
-                                    ? ButtonEdge::PRESSED
-                                    : ButtonEdge::RELEASED;
+        if (debouncer_.update(raw, now)) {
+            stablePressed_ = debouncer_.state();
 
-        emit(edge, ButtonGesture::NONE);
-
-        const ButtonGesture gesture =
-            recognizer_.onEdge(edge, now);
-
-        if (gesture != ButtonGesture::NONE) {
-            emit(ButtonEdge::NONE, gesture);
+            processEdge(
+                stablePressed_
+                    ? ButtonEdge::PRESSED
+                    : ButtonEdge::RELEASED,
+                now
+            );
         }
     }
 
@@ -72,7 +75,7 @@ void ButtonInput::update(uint32_t now) {
 }
 
 bool ButtonInput::isPressed() const {
-    return initialized_ && debouncer_.state();
+    return initialized_ && stablePressed_;
 }
 
 void ButtonInput::emit(
@@ -81,6 +84,46 @@ void ButtonInput::emit(
     if (callback_ != nullptr) {
         callback_(edge, gesture, context_);
     }
+}
+
+void ButtonInput::processEdge(ButtonEdge edge, uint32_t now) {
+    emit(edge, ButtonGesture::NONE);
+
+    const ButtonGesture gesture = recognizer_.onEdge(edge, now);
+
+    if (gesture != ButtonGesture::NONE) {
+        emit(ButtonEdge::NONE, gesture);
+    }
+}
+
+void ButtonInput::onStableStateChanged(
+    bool pressed,
+    uint32_t timestampMs
+) {
+    if (!initialized_ || mode_ != InputMode::ExternalEvents) {
+        return;
+    }
+
+    if (stablePressed_ == pressed) {
+        return;
+    }
+
+    stablePressed_ = pressed;
+
+    processEdge(
+        pressed ? ButtonEdge::PRESSED : ButtonEdge::RELEASED,
+        timestampMs
+    );
+}
+
+void ButtonInput::resyncStableState(bool pressed, uint32_t now) {
+    if (!initialized_ || mode_ != InputMode::ExternalEvents) {
+        return;
+    }
+
+    stablePressed_ = pressed;
+    debouncer_.reset(pressed, now);
+    recognizer_.reset();
 }
 
 } // namespace input

@@ -43,6 +43,12 @@ ApplicationBootstrap::ApplicationBootstrap()
       airbagIndicator_(
           Board::AIRBAG_INDICATOR.port,
           Board::AIRBAG_INDICATOR.pin),
+      valetIndicator_(
+          Board::VALET_INDICATOR.port,
+          Board::VALET_INDICATOR.pin),
+      lockRelay_(
+          Board::LOCK_RELAY.port,
+          Board::LOCK_RELAY.pin),
       ldr_({
           ADC1,
           Board::LDR.channel,
@@ -60,41 +66,47 @@ ApplicationBootstrap::ApplicationBootstrap()
           {
               Board::ENGINE_BUTTON.port,
               Board::ENGINE_BUTTON.pin,
-              drivers::Stm32Button::Polarity::ActiveHigh
+              drivers::Stm32Button::Polarity::ActiveHigh,
+              drivers::Stm32Button::InputMode::Interrupt
           },
           {
               Board::LIGHT_BUTTON.port,
               Board::LIGHT_BUTTON.pin,
-              drivers::Stm32Button::Polarity::ActiveHigh
+              drivers::Stm32Button::Polarity::ActiveHigh,
+              drivers::Stm32Button::InputMode::Interrupt
           },
           {
               Board::TURN_BUTTON.port,
               Board::TURN_BUTTON.pin,
-              drivers::Stm32Button::Polarity::ActiveHigh
+              drivers::Stm32Button::Polarity::ActiveHigh,
+              drivers::Stm32Button::InputMode::Interrupt
           },
           {
               Board::BRAKE_BUTTON.port,
               Board::BRAKE_BUTTON.pin,
-              drivers::Stm32Button::Polarity::ActiveHigh
+              drivers::Stm32Button::Polarity::ActiveHigh,
+              drivers::Stm32Button::InputMode::Interrupt
           },
           {
               Board::CRASH_BUTTON.port,
               Board::CRASH_BUTTON.pin,
-              drivers::Stm32Button::Polarity::ActiveHigh
+              drivers::Stm32Button::Polarity::ActiveHigh,
+              drivers::Stm32Button::InputMode::Interrupt
           },
           {
               Board::LOCK_BUTTON.port,
               Board::LOCK_BUTTON.pin,
-              drivers::Stm32Button::Polarity::ActiveHigh
+              drivers::Stm32Button::Polarity::ActiveHigh,
+              drivers::Stm32Button::InputMode::Interrupt
           }
       }},
       buttonInputs_{{
-          {buttons_[0]},
-          {buttons_[1]},
-          {buttons_[2]},
-          {buttons_[3]},
-          {buttons_[4]},
-          {buttons_[5]}
+          {buttons_[0], 30, {}, input::ButtonInput::InputMode::ExternalEvents},
+          {buttons_[1], 30, {}, input::ButtonInput::InputMode::ExternalEvents},
+          {buttons_[2], 30, {}, input::ButtonInput::InputMode::ExternalEvents},
+          {buttons_[3], 30, {}, input::ButtonInput::InputMode::ExternalEvents},
+          {buttons_[4], 30, {}, input::ButtonInput::InputMode::ExternalEvents},
+          {buttons_[5], 30, {}, input::ButtonInput::InputMode::ExternalEvents}
       }},
       encoder_({
           Board::ENCODER_CLK.port,
@@ -110,6 +122,7 @@ ApplicationBootstrap::ApplicationBootstrap()
           buttonInputs_[static_cast<std::size_t>(ButtonId::Turn)],
           buttonInputs_[static_cast<std::size_t>(ButtonId::Crash)],
           buttonInputs_[static_cast<std::size_t>(ButtonId::Engine)],
+          buttonInputs_[static_cast<std::size_t>(ButtonId::Lock)],
           encoder_) {
 }
 
@@ -128,6 +141,8 @@ bool ApplicationBootstrap::begin(uint32_t now) {
         !motor_.begin() ||
         !engineIndicator_.begin() ||
         !airbagIndicator_.begin() ||
+        !valetIndicator_.begin() ||
+        !lockRelay_.begin() ||
         !ldr_.begin()) {
         end();
         return false;
@@ -154,6 +169,12 @@ bool ApplicationBootstrap::begin(uint32_t now) {
 
     carController_.begin();
 
+    if (!buttonInterruptController_.begin(HAL_GetTick())) {
+        end();
+        return false;
+    }
+
+    lastObservedDroppedEvents_ = droppedButtonEvents();
     lastLdrSampleAt_ = now;
     ambientDark_ = false;
 
@@ -174,6 +195,34 @@ void ApplicationBootstrap::update(uint32_t now) {
         return;
     }
 
+    drivers::Stm32ButtonEvent event;
+
+    using PopResult =
+        drivers::Stm32ButtonInterruptController::PopResult;
+
+    while (true) {
+        const PopResult result =
+            buttonInterruptController_.popEventChecked(
+                event,
+                lastObservedDroppedEvents_
+            );
+
+        if (result == PopResult::Overflow) {
+            recoverButtonInputs(now);
+            break;
+        }
+
+        if (result == PopResult::Empty) {
+            break;
+        }
+
+        onButtonStateChanged(
+            event.pin,
+            event.pressed,
+            event.timestampMs
+        );
+    }
+
     inputManager_.update(now);
     encoder_.update();
 
@@ -191,13 +240,18 @@ void ApplicationBootstrap::update(uint32_t now) {
 
     airbagIndicator_.set(state.airbagsDeployed);
 
+    valetIndicator_.set(state.valetModeActive);
+
+    // Energize the relay when the doors are unlocked.
+    lockRelay_.set(!state.doorsLocked);
+
     uint8_t motorDuty = 0;
 
     if (state.engineState == domain::EngineState::RUNNING) {
         constexpr uint8_t MIN_DUTY = 20;
         constexpr uint8_t MAX_DUTY = 40;
 
-        const uint8_t throttle = state.throttlePercent;
+        const uint8_t throttle = carController_.effectiveThrottlePercent();
 
         motorDuty = MIN_DUTY +
             (static_cast<uint32_t>(throttle - 50) *
@@ -209,6 +263,8 @@ void ApplicationBootstrap::update(uint32_t now) {
 }
 
 void ApplicationBootstrap::end() {
+    buttonInterruptController_.end();
+
     carController_.end();
 
     encoder_.end();
@@ -217,6 +273,8 @@ void ApplicationBootstrap::end() {
     motor_.end();
 
     ldr_.end();
+    lockRelay_.end();
+    valetIndicator_.end();
     airbagIndicator_.end();
     engineIndicator_.end();
 
@@ -258,4 +316,64 @@ void ApplicationBootstrap::updateAmbientLight(uint32_t now) {
         ambientDark_ = dark;
         carController_.setAmbientDark(ambientDark_);
     }
+}
+
+void ApplicationBootstrap::recoverButtonInputs(uint32_t now) {
+    drivers::Stm32ButtonInterruptController::ButtonStateSnapshot snapshot;
+
+    if (!buttonInterruptController_.recoverAfterOverflow(snapshot)) {
+        return;
+    }
+
+    for (std::size_t i = 0; i < BUTTON_COUNT; ++i) {
+        buttonInputs_[i].resyncStableState(snapshot.pressed[i], now);
+    }
+
+    carController_.resyncBrakeState(
+        snapshot.pressed[static_cast<std::size_t>(ButtonId::Brake)]
+    );
+
+    lastObservedDroppedEvents_ = snapshot.droppedEvents;
+}
+
+void ApplicationBootstrap::onButtonStateChanged(
+    uint16_t pin,
+    bool pressed,
+    uint32_t timestampMs
+) {
+    if (!initialized_) {
+        return;
+    }
+
+    ButtonId id;
+
+    switch (pin) {
+        case GPIO_PIN_1: id = ButtonId::Engine; break;
+        case GPIO_PIN_2: id = ButtonId::Light; break;
+        case GPIO_PIN_3: id = ButtonId::Turn; break;
+        case GPIO_PIN_4: id = ButtonId::Brake; break;
+        case GPIO_PIN_5: id = ButtonId::Crash; break;
+        case GPIO_PIN_6: id = ButtonId::Lock; break;
+        default: return;
+    }
+
+    buttonInputs_[static_cast<std::size_t>(id)]
+        .onStableStateChanged(pressed, timestampMs);
+}
+
+void ApplicationBootstrap::onButtonExtiInterrupt(uint16_t pin) {
+    buttonInterruptController_.onExtiInterrupt(pin);
+}
+
+void ApplicationBootstrap::onButtonTimerInterrupt(uint32_t now) {
+    buttonInterruptController_.onTimerInterrupt(now);
+}
+
+void ApplicationBootstrap::handleButtonTimerIrq() {
+    buttonInterruptController_.handleTimerIrq();
+}
+
+__attribute__((noinline))
+uint32_t ApplicationBootstrap::droppedButtonEvents() const {
+    return buttonInterruptController_.droppedEvents();
 }

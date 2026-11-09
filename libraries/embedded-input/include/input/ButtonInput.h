@@ -12,6 +12,11 @@ namespace input {
 
 class ButtonInput : public IButtonInput {
 public:
+    enum class InputMode {
+        Polling,
+        ExternalEvents
+    };
+
     using EventCallback = void (*)(
         ButtonEdge edge,
         ButtonGesture gesture,
@@ -21,7 +26,8 @@ public:
     ButtonInput(
         IButton& button,
         uint32_t debounceMs = 30,
-        GestureConfig gestureConfig = {}
+        GestureConfig gestureConfig = {},
+        InputMode mode = InputMode::Polling
     );
 
     bool begin(uint32_t now) override;
@@ -36,15 +42,23 @@ public:
 
     bool isPressed() const override;
 
+    void onStableStateChanged(bool pressed, uint32_t timestampMs);
+
+    void resyncStableState(bool pressed, uint32_t now);
+
 private:
     void emit(ButtonEdge edge, ButtonGesture gesture);
+
+    void processEdge(ButtonEdge edge, uint32_t now);
 
     IButton& button_;
     Debouncer debouncer_;
     ButtonGestureRecognizer recognizer_;
+    InputMode mode_;
 
     EventCallback callback_ = nullptr;
     void* context_ = nullptr;
+    bool stablePressed_ = false;
 
     bool initialized_ = false;
 };
